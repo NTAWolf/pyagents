@@ -1,0 +1,4 @@
+- Add a tool for aggregating relevant results
+	- Learn what results are relevant
+- Make a list of wanted basic agents
+	- Consider how agents might be broken into subparts that can be shared
