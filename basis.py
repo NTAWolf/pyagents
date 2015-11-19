@@ -4,9 +4,12 @@ while GameManager is an actual applicable game manager that can be used across
 all games and agents supported by ALE.
 """
 
+import os
 import util
 from datetime import datetime
 from ale_python_interface import ALEInterface
+
+ROM_RELATIVE_LOCATION = '../roms/'
 
 class Agent(object):
     """This class defines the agent interface to be used in this project.
@@ -38,17 +41,17 @@ class GameManager(object):
         self.use_minimal_action_set = use_minimal_action_set
 
         now = datetime.now().strftime('%Y%m%d-%H-%M')
-        self.results_dir = os.join(results_dir, game_name[:-4] + now) # drop .bin, append current time down to the minute
+        self.results_dir = os.path.join(results_dir, game_name[:-4] + now) # drop .bin, append current time down to the minute
         self.initiate_results_dir()
 
         self.log = util.Logger(('settings','action', 'episode','run'), 
-                                'episode', os.join(self.results_dir, 'GameManager.log'))
+                                'episode', os.path.join(self.results_dir, 'GameManager.log'))
 
-        log.settings("game_name {}".format(game_name))
-        log.settings("agent.name {}".format(agent.name))
-        log.settings("agent.version {}".format(agent.version))
-        log.settings("results_dir {}".format(results_dir))
-        log.settings("use_minimal_action_set {}".format(use_minimal_action_set))
+        self.log.settings("game_name {}".format(game_name))
+        self.log.settings("agent.name {}".format(agent.name))
+        self.log.settings("agent.version {}".format(agent.version))
+        self.log.settings("results_dir {}".format(results_dir))
+        self.log.settings("use_minimal_action_set {}".format(use_minimal_action_set))
 
     def initiate_results_dir(self):
         os.makedirs(self.results_dir) # Should raise an error if directory exists
@@ -58,17 +61,17 @@ class GameManager(object):
         No more than one of them can be assigned to a value at a time.
         """
         if n_episodes == n_frames:
-            log.run("Aborted due to bad input to run()")
+            self.log.run("Aborted due to bad input to run()")
             raise ValueError("One and only one of n_episodes and n_frames can be defined at a time")
 
         self.n_episodes = n_episodes
         self.n_frames = n_frames
 
-        log.settings("n_episodes {}".format(str(n_episodes)))
-        log.settings("n_frames {}".format(str(n_frames)))
+        self.log.settings("n_episodes {}".format(str(n_episodes)))
+        self.log.settings("n_frames {}".format(str(n_frames)))
 
         self.ale = ALEInterface()
-        self.ale.loadROM(self.game_name)
+        self.ale.loadROM(os.path.join(ROM_RELATIVE_LOCATION, self.game_name))
         if self.use_minimal_action_set:
             self.actions = self.ale.getMinimalActionSet()
         else:
@@ -94,17 +97,17 @@ class GameManager(object):
             action = self.agent.select_action(self.state_callbacks, self.actions)
             reward = self.ale.act(action)
             self.log.action("Action number {}: took action {}, reward {}".format(n_action, action, reward))
-            self.agent.receive_reward()
+            self.agent.receive_reward(reward)
             total_reward += reward
             n_action += 1
         duration = datetime.now() - start
-        self.log.episode('Ended with total reward {} after '.format(total_reward, duration))
+        self.log.episode('Ended with total reward {} after {}'.format(total_reward, duration))
         self.ale.reset_game()
 
     def _stop_condition_met(self):
         if self.n_episodes:
             return self.episodes_passed >= self.n_episodes
-        return self.n_frames >= self.ale.getFrameNumber()
+        return self.ale.getFrameNumber() >= self.n_frames
 
     # Methods for state perception
     def get_screen(self): 

@@ -3,11 +3,11 @@ from __future__ import print_function
 import os
 
 class Logger(object):
-    def __init__(self, levels, print_threshold, path, prepend='', formatter=None):
+    def __init__(self, levels, print_threshold, path, prepend=None, formatter=None):
         self.levels = levels
         self.print_threshold = print_threshold
-        self.prepend = prepend
-        self.formatter = formatter or (lambda x,y: "{}:{}: {}".format(self.prepend,x,y))
+        self.prepend = (str(prepend) + ': ') if prepend else ''
+        self.formatter = formatter or (lambda x,y: "{}{}: {}".format(self.prepend,x,y))
         self.path = path
         self.clear()
         self._initiate_levels()
