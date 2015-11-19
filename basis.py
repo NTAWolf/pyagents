@@ -8,8 +8,9 @@ class Agent(object):
     """This class defines the agent interface to be used in this project.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, version):
         self.name = name
+        self.version = version
 
     def select_action(self, state, available_actions):
         """Returns one of the actions given in available_actions.
@@ -39,6 +40,7 @@ class GameManager(object):
 
         log.settings("game_name {}".format(game_name))
         log.settings("agent.name {}".format(agent.name))
+        log.settings("agent.version {}".format(agent.version))
         log.settings("results_dir {}".format(results_dir))
         log.settings("use_minimal_action_set {}".format(use_minimal_action_set))
 
