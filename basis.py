@@ -8,6 +8,7 @@ import os
 import util
 from datetime import datetime
 from ale_python_interface import ALEInterface
+from collections import namedtuple
 
 ROM_RELATIVE_LOCATION = '../roms/'
 
@@ -79,7 +80,8 @@ class GameManager(object):
         else:
             self.actions = self.ale.getLegalActionSet()
 
-        self.state_callbacks = (self.get_screen, self.get_screen_grayscale, self.get_screen_RGB, self.get_RAM)
+        SF = namedtuple('StateFunctions', ['raw', 'grey', 'rgb', 'ram'])
+        self.state_functions = SF(self.get_screen, self.get_screen_grayscale, self.get_screen_RGB, self.get_RAM)
         self.episodes_passed = 0
 
         self.log.run("Starting run")
@@ -96,7 +98,7 @@ class GameManager(object):
         total_reward = 0
         n_action = 0
         while (not self.ale.game_over()) and (not self._stop_condition_met()):
-            action = self.agent.select_action(self.state_callbacks, self.actions)
+            action = self.agent.select_action(self.state_functions, self.actions)
             reward = self.ale.act(action)
             self.log.action("Action number {}: took action {}, reward {}".format(n_action, action, reward))
             self.agent.receive_reward(reward)

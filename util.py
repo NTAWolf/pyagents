@@ -1,6 +1,5 @@
 
 from __future__ import print_function
-import os
 
 class Logger(object):
     def __init__(self, levels, print_threshold, path, prepend=None, formatter=None):
