@@ -34,3 +34,9 @@ class Logger(object):
     def clear(self):
         with open(self.path, 'w') as f:
             pass
+
+def product(*args):
+    res = 1
+    for arg in args:
+        res *= arg
+    return res

@@ -53,6 +53,8 @@ class GameManager(object):
         self.log.settings("results_dir {}".format(results_dir))
         self.log.settings("use_minimal_action_set {}".format(use_minimal_action_set))
 
+        self._object_cache = dict()
+
     def initiate_results_dir(self):
         os.makedirs(self.results_dir) # Should raise an error if directory exists
 
@@ -111,22 +113,34 @@ class GameManager(object):
 
     # Methods for state perception
     def get_screen(self): 
-        """Returns a matrix containing the current game screen."""
-        return self.ale.getScreen()
+        """Returns a matrix containing the current game screen in raw pixel data,
+        i.e. before conversion to RGB. Handles reuse of np.array object, so it 
+        will overwrite what is in the old object"""
+        return self._cached('raw', self.ale.getScreen)
 
-    def get_screen_grayscale(self, grayscale_output_buffer):
-        """This method should receive an array of length width x height 
-        (generally 160 x 210 = 33, 600) and then it will fill this array 
-        with the grayscale colours"""
-        return self.ale.getScreenGrayscale(grayscale_output_buffer)
+    def get_screen_grayscale(self):
+        """Returns an np.array with the screen grayscale colours. 
+        Handles reuse of np.array object, so it will overwrite what 
+        is in the old object.
+        """
+        return self._cached('gray', self.ale.getScreenGrayscale)
 
-    def get_screen_RGB(self, output_rgb_buffer): 
-        """This method should receive an array of length 3x width x height 
-        (generally 3 x 160 x 210 = 100, 800) and then it will fill this array 
-        with the RGB colours. The first positions contain the red colours, 
-        followed by the green colours and then the blue colours"""
-        return self.ale.getScreenRGB(output_rgb_buffer)
+    def get_screen_RGB(self): 
+        """Returns a numpy array with the screen's RGB colours. 
+        The first positions contain the red colours, followed by
+        the green colours and then the blue colours"""
+        return self._cached('rgb', self.ale.getScreenRGB)
 
     def get_RAM(self): 
-        """Returns a vector containing current RAM content (byte-level)."""
-        return self.ale.getRAM()
+        """Returns a vector containing current RAM content (byte-level).
+        Handles reuse of np.array object, so it will overwrite what 
+        is in the old object"""
+        return self._cached('ram', self.ale.getRAM)
+        
+    def _cached(self, key, func):
+        if key in self._object_cache:
+            func(self._object_cache[key])
+        else:
+            self._object_cache[key] = func()
+
+        return self._object_cache[key]
