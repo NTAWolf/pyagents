@@ -14,3 +14,8 @@ class UniformRandomAgent(Agent):
     def receive_reward(self, reward):
         pass
         
+    def on_episode_start(self):
+        pass
+
+    def on_episode_end(self):
+        pass

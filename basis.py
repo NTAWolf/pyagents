@@ -28,6 +28,15 @@ class Agent(object):
     def receive_reward(self, reward):
         raise NotImplementedError("Method not implemented")
 
+    def on_episode_start(self):
+        """Called on episode start by the GameManager
+        """
+        raise NotImplementedError("Method not implemented")
+
+    def on_episode_end(self):
+        """Called on episode end by the GameManager
+        """
+        raise NotImplementedError("Method not implemented")
 
 
 
@@ -97,6 +106,7 @@ class GameManager(object):
         start = datetime.now()
         total_reward = 0
         n_action = 0
+        self.agent.on_episode_start()
         while (not self.ale.game_over()) and (not self._stop_condition_met()):
             action = self.agent.select_action(self.state_functions, self.actions)
             reward = self.ale.act(action)
@@ -104,6 +114,7 @@ class GameManager(object):
             self.agent.receive_reward(reward)
             total_reward += reward
             n_action += 1
+        self.agent.on_episode_end()
         duration = datetime.now() - start
         self.log.episode('Ended with total reward {} after {}'.format(total_reward, duration))
         self.ale.reset_game()

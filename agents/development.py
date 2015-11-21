@@ -51,3 +51,9 @@ class DevelopmentAgent(Agent):
     def receive_reward(self, reward):
         self.storage['reward'] = reward
         
+
+    def on_episode_start(self):
+        print "Agent sees that episode starts"
+
+    def on_episode_end(self):
+        print "Agent sees that episode ends"
