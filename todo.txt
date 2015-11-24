@@ -2,3 +2,5 @@
 	- Learn what results are relevant
 - Make a list of wanted basic agents
 	- Consider how agents might be broken into subparts that can be shared
+
+Maybe I can use RF on the RAM?
