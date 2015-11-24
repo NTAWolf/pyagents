@@ -1,6 +1,7 @@
 from basis import Agent
 import threading
 
+
 class StoppableThread(threading.Thread):
     """Thread class with a stop() method. The thread itself has to check
     regularly for the stopped() condition."""
@@ -15,20 +16,23 @@ class StoppableThread(threading.Thread):
     def stopped(self):
         return self._stop.isSet()
 
+
 def check_stop_thread():
     if threading.current_thread().stopped():
         raise StopIteration
+
 
 class DevelopmentAgent(Agent):
     """This agent is for development purposes.
     Strategically placed breakpoints give the developer access to the same 
     knowledge and actions as the agent has."""
-    
+
     def __init__(self, storage, thread_event):
         """storage is a dict used for communication between this agent and a
         development application. Variables are stored there.
         """
-        super(DevelopmentAgent, self).__init__(name='DevelopmentAgent', version='1')
+        super(DevelopmentAgent, self).__init__(
+            name='DevelopmentAgent', version='1')
         self.storage = storage
         self.thread_event = thread_event
 
@@ -50,7 +54,6 @@ class DevelopmentAgent(Agent):
 
     def receive_reward(self, reward):
         self.storage['reward'] = reward
-        
 
     def on_episode_start(self):
         print "Agent sees that episode starts"

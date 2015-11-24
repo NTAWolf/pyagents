@@ -17,6 +17,7 @@ from visualise import Visualiser
 
 ROM_RELATIVE_LOCATION = '../roms/'
 
+
 class Agent(object):
     """This class defines the agent interface to be used in this project.
     """
@@ -44,7 +45,6 @@ class Agent(object):
         raise NotImplementedError("Method not implemented")
 
 
-
 class GameManager(object):
     """This class takes care of the interactions between an agent and
     a game across episodes, as well as overall logging of performance.
@@ -66,17 +66,19 @@ class GameManager(object):
         self.visualise = visualise
 
         now = datetime.now().strftime('%Y%m%d-%H-%M')
-        self.results_dir = os.path.join(results_dir, game_name[:-4] + now) # drop .bin, append current time down to the minute
+        # drop .bin, append current time down to the minute
+        self.results_dir = os.path.join(results_dir, game_name[:-4] + now)
         self.initialize_results_dir(remove_old_results_dir)
 
-        self.log = util.Logger(('settings','action', 'episode','run'), 
-                                'episode', os.path.join(self.results_dir, 'GameManager.log'))
+        self.log = util.Logger(('settings', 'action', 'episode', 'run'),
+                               'episode', os.path.join(self.results_dir, 'GameManager.log'))
 
         self.log.settings("game_name {}".format(game_name))
         self.log.settings("agent.name {}".format(agent.name))
         self.log.settings("agent.version {}".format(agent.version))
         self.log.settings("results_dir {}".format(results_dir))
-        self.log.settings("use_minimal_action_set {}".format(use_minimal_action_set))
+        self.log.settings(
+            "use_minimal_action_set {}".format(use_minimal_action_set))
         self.log.settings("visualise {}".format(visualise))
 
         self._object_cache = dict()
@@ -89,7 +91,8 @@ class GameManager(object):
         if remove_existing:
             if os.path.exists(self.results_dir):
                 shutil.rmtree(self.results_dir)
-        os.makedirs(self.results_dir) # Should raise an error if directory exists
+        # Should raise an error if directory exists
+        os.makedirs(self.results_dir)
 
     def initialize_visualiser(self):
         """If the internal flag for visualization is set, 
@@ -100,7 +103,7 @@ class GameManager(object):
             if self.visualise == 'ram':
                 def callback():
                     ram = self.get_RAM()
-                    return ram.reshape((8,-1))
+                    return ram.reshape((8, -1))
             elif self.visualise == 'raw':
                 callback = self.get_screen
             elif self.visualise == 'grey':
@@ -108,7 +111,7 @@ class GameManager(object):
             elif self.visualise == 'rgb':
                 callback = self.get_screen_RGB
 
-            self.visualiser = Visualiser(callback, framerate, 
+            self.visualiser = Visualiser(callback, framerate,
                                          title="{}: {}".format(self.game_name, self.visualise))
         else:
             self.visualiser = None
@@ -116,7 +119,8 @@ class GameManager(object):
     def initialize_run(self, n_episodes, n_frames):
         if n_episodes == n_frames:
             self.log.run("Aborted due to bad input to run()")
-            raise ValueError("One and only one of n_episodes and n_frames can be defined at a time")
+            raise ValueError(
+                "One and only one of n_episodes and n_frames can be defined at a time")
 
         self.n_episodes = n_episodes
         self.n_frames = n_frames
@@ -132,7 +136,8 @@ class GameManager(object):
             self.actions = self.ale.getLegalActionSet()
 
         SF = namedtuple('StateFunctions', ['raw', 'grey', 'rgb', 'ram'])
-        self.state_functions = SF(self.get_screen, self.get_screen_grayscale, self.get_screen_RGB, self.get_RAM)
+        self.state_functions = SF(
+            self.get_screen, self.get_screen_grayscale, self.get_screen_RGB, self.get_RAM)
         self.episodes_passed = 0
 
         self.initialize_visualiser()
@@ -146,7 +151,7 @@ class GameManager(object):
             t = Thread(target=self._run)
             t.start()
             self.visualiser.run()
-                # self.visualiser.on_draw(None)
+            # self.visualiser.on_draw(None)
         else:
             self._run()
 
@@ -157,7 +162,8 @@ class GameManager(object):
         self.log.run("Starting run")
         start = datetime.now()
         while not self._stop_condition_met():
-            self.log.episode("Starting episode {}".format(self.episodes_passed))    
+            self.log.episode(
+                "Starting episode {}".format(self.episodes_passed))
             self._run_episode()
             self.episodes_passed += 1
         duration = datetime.now() - start
@@ -169,15 +175,18 @@ class GameManager(object):
         n_action = 0
         self.agent.on_episode_start()
         while (not self.ale.game_over()) and (not self._stop_condition_met()):
-            action = self.agent.select_action(self.state_functions, self.actions)
+            action = self.agent.select_action(
+                self.state_functions, self.actions)
             reward = self.ale.act(action)
-            self.log.action("Action number {}: took action {}, reward {}".format(n_action, action, reward))
+            self.log.action("Action number {}: took action {}, reward {}".format(
+                n_action, action, reward))
             self.agent.receive_reward(reward)
             total_reward += reward
             n_action += 1
         self.agent.on_episode_end()
         duration = datetime.now() - start
-        self.log.episode('Ended with total reward {} after {}'.format(total_reward, duration))
+        self.log.episode('Ended with total reward {} after {}'.format(
+            total_reward, duration))
         self.ale.reset_game()
 
     def _stop_condition_met(self):
@@ -186,7 +195,7 @@ class GameManager(object):
         return self.ale.getFrameNumber() >= self.n_frames
 
     # Methods for state perception
-    def get_screen(self): 
+    def get_screen(self):
         """Returns a matrix containing the current game screen in raw pixel data,
         i.e. before conversion to RGB. Handles reuse of np.array object, so it 
         will overwrite what is in the old object"""
@@ -199,18 +208,18 @@ class GameManager(object):
         """
         return self._cached('gray', self.ale.getScreenGrayscale)
 
-    def get_screen_RGB(self): 
+    def get_screen_RGB(self):
         """Returns a numpy array with the screen's RGB colours. 
         The first positions contain the red colours, followed by
         the green colours and then the blue colours"""
         return self._cached('rgb', self.ale.getScreenRGB)
 
-    def get_RAM(self): 
+    def get_RAM(self):
         """Returns a vector containing current RAM content (byte-level).
         Handles reuse of np.array object, so it will overwrite what 
         is in the old object"""
         return self._cached('ram', self.ale.getRAM)
-        
+
     def _cached(self, key, func):
         if key in self._object_cache:
             func(self._object_cache[key])

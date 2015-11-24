@@ -2,12 +2,15 @@
 from __future__ import print_function
 import numpy as np
 
+
 class Logger(object):
+
     def __init__(self, levels, print_threshold, path, prepend=None, formatter=None):
         self.levels = levels
         self.print_threshold = print_threshold
         self.prepend = (str(prepend) + ': ') if prepend else ''
-        self.formatter = formatter or (lambda x,y: "{}{}: {}".format(self.prepend,x,y))
+        self.formatter = formatter or (
+            lambda x, y: "{}{}: {}".format(self.prepend, x, y))
         self.path = path
         self.clear()
         self._initiate_levels()
@@ -35,6 +38,7 @@ class Logger(object):
         with open(self.path, 'w') as f:
             pass
 
+
 def product(*args):
     res = 1
     for arg in args:
@@ -51,8 +55,10 @@ class CircularList(object):
 
     def __init__(self, length):
         self.data = [None for _ in xrange(length)]
-        self.i = -1 # Index of the last changed object
-        self.full_circle = False # Flag set to True when the whole list is filled out and we start looping
+        self.i = -1  # Index of the last changed object
+        # Flag set to True when the whole list is filled out and we start
+        # looping
+        self.full_circle = False
 
     def insert(self, value):
         self.i += 1
@@ -69,8 +75,8 @@ class CircularList(object):
         if self.full_circle:
             data = self.data
         else:
-            data = self.data[:self.i+1]
-        return np.random.choice(data, sample_size, replace=True) # uniform
+            data = self.data[:self.i + 1]
+        return np.random.choice(data, sample_size, replace=True)  # uniform
 
     def _is_valid_index(self, index):
         return index >= 0 and ((index < len(self.data)) if self.full_circle else (index <= self.i))
@@ -79,7 +85,8 @@ class CircularList(object):
         if self.i == -1:
             raise IndexError("No elements in CircularList yet.")
         if not self._is_valid_index(index):
-            raise IndexError("Invalid index {}. Should be in range (0, {})".format(index, (len(self.data) if self.full_circle else self.i) ))
+            raise IndexError("Invalid index {}. Should be in range (0, {})".format(
+                index, (len(self.data) if self.full_circle else self.i)))
 
         i = self.i - index
         if self.full_circle:
@@ -95,7 +102,8 @@ class CircularList(object):
         """
         if type(key) == slice:
             start = key.start or 0
-            stop = key.stop or (len(self.data) if self.full_circle else self.i + 1)
+            stop = key.stop or (
+                len(self.data) if self.full_circle else self.i + 1)
             step = key.step or 1
 
             return [self[i] for i in xrange(start, stop, step)]
