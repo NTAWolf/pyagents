@@ -4,11 +4,16 @@ while GameManager is an actual applicable game manager that can be used across
 all games and agents supported by ALE.
 """
 
-import os
-import util
-from datetime import datetime
-from ale_python_interface import ALEInterface
 from collections import namedtuple
+from datetime import datetime
+import os
+from threading import Thread
+import shutil
+import util
+
+from ale_python_interface import ALEInterface
+
+from visualise import Visualiser
 
 ROM_RELATIVE_LOCATION = '../roms/'
 
@@ -45,14 +50,24 @@ class GameManager(object):
     a game across episodes, as well as overall logging of performance.
     """
 
-    def __init__(self, game_name, agent, results_dir, use_minimal_action_set=True):
+    def __init__(self, game_name, agent, results_dir, remove_old_results_dir=False, use_minimal_action_set=True, visualise=None):
+        """game_name is one of the supported games (there are many), as a string: "space_invaders.bin"
+        agent is an an instance of a subclass of the Agent interface
+        results_dir is a string representing a directory in which results and logs are placed
+            If it does not exist, it is created.
+        use_minimal_action_set determines whether the agent is offered all possible actions,
+            or only those (minimal) that are applicable to the specific game.
+        visualise is None for no visualization (default), or one of 'raw', 'ram', 'grey', 'rgb'
+            The RAM vector is reshaped to a 8x16 array.
+        """
         self.game_name = game_name
         self.agent = agent
         self.use_minimal_action_set = use_minimal_action_set
+        self.visualise = visualise
 
         now = datetime.now().strftime('%Y%m%d-%H-%M')
         self.results_dir = os.path.join(results_dir, game_name[:-4] + now) # drop .bin, append current time down to the minute
-        self.initiate_results_dir()
+        self.initialize_results_dir(remove_old_results_dir)
 
         self.log = util.Logger(('settings','action', 'episode','run'), 
                                 'episode', os.path.join(self.results_dir, 'GameManager.log'))
@@ -62,16 +77,42 @@ class GameManager(object):
         self.log.settings("agent.version {}".format(agent.version))
         self.log.settings("results_dir {}".format(results_dir))
         self.log.settings("use_minimal_action_set {}".format(use_minimal_action_set))
+        self.log.settings("visualise {}".format(visualise))
 
         self._object_cache = dict()
 
-    def initiate_results_dir(self):
+    def initialize_results_dir(self, remove_existing=False):
+        """Creates the whole path of directories if they do no exist.
+        If they do exist, raises an error unless remove_existing is True,
+        in which case the existing directory is deleted.
+        """
+        if remove_existing:
+            if os.path.exists(self.results_dir):
+                shutil.rmtree(self.results_dir)
         os.makedirs(self.results_dir) # Should raise an error if directory exists
 
-    def run(self, n_episodes=None, n_frames=None):
-        """Run the wanted number of episodes or the wanted number of frames. 
-        No more than one of them can be assigned to a value at a time.
+    def initialize_visualiser(self):
+        """If the internal flag for visualization is set, 
+        prepare the visualizer.
         """
+        if self.visualise:
+            framerate = 60
+            if self.visualise == 'ram':
+                def callback():
+                    ram = self.get_RAM()
+                    return ram.reshape((8,-1))
+            elif self.visualise == 'raw':
+                callback = self.get_screen
+            elif self.visualise == 'grey':
+                callback = self.get_screen_grayscale
+            elif self.visualise == 'rgb':
+                callback = self.get_screen_RGB
+
+            self.visualiser = Visualiser(callback, framerate)
+        else:
+            self.visualiser = None
+
+    def initialize_run(self, n_episodes, n_frames):
         if n_episodes == n_frames:
             self.log.run("Aborted due to bad input to run()")
             raise ValueError("One and only one of n_episodes and n_frames can be defined at a time")
@@ -93,10 +134,29 @@ class GameManager(object):
         self.state_functions = SF(self.get_screen, self.get_screen_grayscale, self.get_screen_RGB, self.get_RAM)
         self.episodes_passed = 0
 
+        self.initialize_visualiser()
+
+    def run(self, n_episodes=None, n_frames=None):
+        """Run the wanted number of episodes or the wanted number of frames. 
+        No more than one of them can be assigned to a value at a time.
+        """
+        self.initialize_run(n_episodes, n_frames)
+        if self.visualiser:
+            t = Thread(target=self._run)
+            t.start()
+            self.visualiser.run()
+                # self.visualiser.on_draw(None)
+        else:
+            self._run()
+
+    def _run(self):
+        """Run the wanted number of episodes or the wanted number of frames. 
+        No more than one of them can be assigned to a value at a time.
+        """
         self.log.run("Starting run")
         start = datetime.now()
         while not self._stop_condition_met():
-            self.log.episode("Starting episode {}".format(self.episodes_passed))
+            self.log.episode("Starting episode {}".format(self.episodes_passed))    
             self._run_episode()
             self.episodes_passed += 1
         duration = datetime.now() - start

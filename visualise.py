@@ -2,7 +2,7 @@
 
 from vispy import app, visuals, gloo
 
-class Visualizer(app.Canvas):
+class Visualiser(app.Canvas):
     """A vispy Canvas dedicated to showing off 2D arrays.
     Give it a callback that returns an array, and a wanted 
     framerate (# of frames per second), and it will display 
@@ -60,5 +60,5 @@ if __name__ == '__main__':
             return self.data
 
     GM = DummyGameManager((15,15,3))
-    win = Visualizer(GM.get_image, 2)
+    win = Visualiser(GM.get_image, 2)
     win.run()
