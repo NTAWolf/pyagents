@@ -108,7 +108,8 @@ class GameManager(object):
             elif self.visualise == 'rgb':
                 callback = self.get_screen_RGB
 
-            self.visualiser = Visualiser(callback, framerate)
+            self.visualiser = Visualiser(callback, framerate, 
+                                         title="{}: {}".format(self.game_name, self.visualise))
         else:
             self.visualiser = None
 
