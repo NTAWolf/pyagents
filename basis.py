@@ -166,7 +166,7 @@ class GameManager(object):
                 "Starting episode {}".format(self.episodes_passed))
             self._run_episode()
             self.episodes_passed += 1
-        duration = datetime.now() - start
+        duration = (datetime.now() - start).total_seconds()
         self.log.run("Finished run after {}".format(duration))
 
     def _run_episode(self):
@@ -184,7 +184,7 @@ class GameManager(object):
             total_reward += reward
             n_action += 1
         self.agent.on_episode_end()
-        duration = datetime.now() - start
+        duration = (datetime.now() - start).total_seconds()
         self.log.episode('Ended with total reward {} after {}'.format(
             total_reward, duration))
         self.ale.reset_game()

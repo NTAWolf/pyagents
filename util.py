@@ -58,13 +58,13 @@ class CircularList(object):
         self.i = -1  # Index of the last changed object
         # Flag set to True when the whole list is filled out and we start
         # looping
-        self.full_circle = False
+        self.full = False
 
     def insert(self, value):
         self.i += 1
         if self.i >= len(self.data):
             self.i = 0
-            self.full_circle = True
+            self.full = True
         self.data[self.i] = value
 
     def batch_insert(self, values):
@@ -72,24 +72,24 @@ class CircularList(object):
             self.insert(v)
 
     def uniform_random_sample(self, sample_size):
-        if self.full_circle:
+        if self.full:
             data = self.data
         else:
             data = self.data[:self.i + 1]
         return np.random.choice(data, sample_size, replace=True)  # uniform
 
     def _is_valid_index(self, index):
-        return index >= 0 and ((index < len(self.data)) if self.full_circle else (index <= self.i))
+        return index >= 0 and ((index < len(self.data)) if self.full else (index <= self.i))
 
     def _get_single_item(self, index):
         if self.i == -1:
             raise IndexError("No elements in CircularList yet.")
         if not self._is_valid_index(index):
             raise IndexError("Invalid index {}. Should be in range (0, {})".format(
-                index, (len(self.data) if self.full_circle else self.i)))
+                index, (len(self.data) if self.full else self.i)))
 
         i = self.i - index
-        if self.full_circle:
+        if self.full:
             i = i % len(self.data)
 
         return self.data[i]
@@ -103,7 +103,7 @@ class CircularList(object):
         if type(key) == slice:
             start = key.start or 0
             stop = key.stop or (
-                len(self.data) if self.full_circle else self.i + 1)
+                len(self.data) if self.full else self.i + 1)
             step = key.step or 1
 
             return [self[i] for i in xrange(start, stop, step)]
@@ -111,6 +111,6 @@ class CircularList(object):
             return self._get_single_item(key)
 
     def __len__(self):
-        if self.full_circle:
+        if self.full:
             return len(self.data)
         return self.i + 1

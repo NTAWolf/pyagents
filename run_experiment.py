@@ -14,12 +14,15 @@ def main():
                               'modified to contain the necessary information '
                               'about that experiment.'))
 
-    available = ("testbed",)
+    available = ("testbed",
+                 "testbed2")
 
     experiment = parser.parse_args().experiment
 
     if experiment == 'testbed':
         from experiments import testbed
+    elif experiment == 'testbed2':
+        from experiments import testbed2
     else:
         print "No experiment known under the name '{}'".format(experiment)
         print "Available experiments are"
