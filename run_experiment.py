@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import importlib
 import os
 
 
@@ -9,7 +10,15 @@ EXPERIMENTS_PACKAGE = "experiments"
 
 def load_experiment(name):
     name = EXPERIMENTS_PACKAGE + "." + name
-    return __import__(name, fromlist=[''])
+    return importlib.import_module(name)
+
+
+def get_available_experiments():
+    dircontent = os.listdir(EXPERIMENTS_PACKAGE)
+    pyfiles = filter(lambda x: x.endswith('.py'), dircontent)
+    experiments = filter(lambda x: not '__init__' in x, pyfiles)
+    names = map(lambda x: x[:-3], experiments)
+    return names
 
 
 def main():
@@ -22,13 +31,8 @@ def main():
                               'experiment.')
                         )
 
-    available = os.listdir(EXPERIMENTS_PACKAGE)
-    
-    # only .py files (not __init__), and remove the .py
-    available = [d[:-3]
-                 for d in available if d.endswith('.py') and (not '__init__' in d)]
-
     experiment = parser.parse_args().experiment
+    available = get_available_experiments()
 
     if experiment in available:
         load_experiment(experiment)
