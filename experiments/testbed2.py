@@ -1,5 +1,5 @@
-from basis import GameManager
-from agents.action_chain import ActionChainAgent
+from game_manager import GameManager
+from agents import ActionChainAgent
 
 agent = ActionChainAgent(10)
 gm = GameManager("space_invaders.bin", agent, 'experiments/acaresults',

@@ -1,6 +1,6 @@
 from random import randrange, random
 
-from basis import Agent
+from . import Agent
 from util import CircularList
 
 

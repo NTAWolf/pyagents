@@ -1,4 +1,4 @@
-from basis import Agent
+from . import Agent
 from random import randrange
 
 

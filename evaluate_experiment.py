@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+import argparse
 from datetime import timedelta
 import os
 import re
@@ -8,27 +10,19 @@ import subprocess
 import pandas as pd
 
 
-# def add_to_hall_of_fame(log):
+def evaluate(experiment_log):
+    print("Evaluating experiment from logfile:", experiment_log)
 
-
-def main():
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description='Experiment evaluator for pyagents.')
-    parser.add_argument('logfile',
-                        help=('The path to the logfile of the experiment you '
-                              'want to evaluate.')
-                        )
-
-    logfile = parser.parse_args().logfile
-    print "logfile", logfile
     figfile = os.path.join(os.path.dirname(logfile), 'episode_stats.png')
-    print "figfile", figfile
 
-
-    with open(logfile, 'r') as f:
+    with open(experiment_log, 'r') as f:
         log = f.readlines()
+
+    output_dir = os.path.join(os.path.dirname(logfile), experiment_log[:-4] + '_evaluation')
+    os.makedirs(output_dir)
+    print("Writing evaluation to directory:", output_dir)
+
+    # Average score per episode
 
     episode_stats_re = re.compile(
         '^episode: Ended with total reward (\d+) after (.*)$')
@@ -50,6 +44,15 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(
+        description='Experiment evaluator for pyagents.')
+    parser.add_argument('logfile',
+                        help=('The path to the logfile of the experiment you '
+                              'want to evaluate.')
+                        )
+
+
+    logfile = parser.parse_args().logfile
+    evaluate(logfile)
 else:
     raise ImportError("The evaluate_experiment module can only be run as main")
