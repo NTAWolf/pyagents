@@ -22,3 +22,13 @@ class UniformRandomAgent(Agent):
 
     def on_episode_end(self):
         pass
+
+    def get_printable_settings(self):
+        """Called by the GameManager when it is
+        time to store this agent's settings
+
+        Returns a string or something that can be 
+        made into one by str()
+        """
+        return ""
+

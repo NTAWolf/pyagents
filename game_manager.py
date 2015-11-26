@@ -49,6 +49,7 @@ class GameManager(object):
         self.log.settings("game_name {}".format(game_name))
         self.log.settings("agent.name {}".format(agent.name))
         self.log.settings("agent.version {}".format(agent.version))
+        self.log.settings("agent settings: {}".format(self.agent.get_printable_settings()))
         self.log.settings("results_dir {}".format(results_dir))
         self.log.settings(
             "use_minimal_action_set {}".format(use_minimal_action_set))
@@ -140,26 +141,26 @@ class GameManager(object):
             self._run_episode()
             self.episodes_passed += 1
         duration = (datetime.now() - start).total_seconds()
-        self.log.run("Finished run after {}".format(duration))
+        self.log.run("Finished run after {} seconds".format(duration))
 
     def _run_episode(self):
         start = datetime.now()
         total_reward = 0
-        n_action = 0
+        nframes = 0
+
         self.agent.on_episode_start()
         while (not self.ale.game_over()) and (not self._stop_condition_met()):
             action = self.agent.select_action(
                 self.state_functions, self.actions)
             reward = self.ale.act(action)
-            self.log.action("Action number {}: took action {}, reward {}".format(
-                n_action, action, reward))
             self.agent.receive_reward(reward)
             total_reward += reward
-            n_action += 1
+            nframes += 1
         self.agent.on_episode_end()
+
         duration = (datetime.now() - start).total_seconds()
-        self.log.episode('Ended with total reward {} after {}'.format(
-            total_reward, duration))
+        self.log.episode('Ended with total reward {} after {} seconds and {} frames'.format(
+            total_reward, duration, nframes))
         self.ale.reset_game()
 
     def _stop_condition_met(self):

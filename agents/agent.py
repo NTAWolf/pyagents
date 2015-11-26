@@ -24,3 +24,12 @@ class Agent(object):
         """Called on episode end by the GameManager
         """
         raise NotImplementedError("Method not implemented")
+
+    def get_printable_settings(self):
+        """Called by the GameManager when it is
+        time to store this agent's settings
+
+        Returns a string or something that can be 
+        made into one by str()
+        """
+        raise NotImplementedError("Method not implemented")

@@ -3,6 +3,7 @@ from random import randrange, random
 from . import Agent
 from util.collections import CircularList
 from util.listops import sublists, listhash
+from util.interpolation import linear_latch
 
 
 class ActionChainAgent(Agent):
@@ -10,20 +11,32 @@ class ActionChainAgent(Agent):
 
     def __init__(self, chain_length):
         super(ActionChainAgent, self).__init__(
-            name='ActionChainAgent', version='1')
+            name='ActionChainAgent', version='1.2')
         self.q = dict()  # state-action values: q[state][action]
         self.chain = CircularList(chain_length)
-        self.e = 0.25
+        # e=1 until frame 5k, then interpolate down to e=0.05 in frame 10k,
+        # and keep it there for the remaining time
+        self.e_params = (5000, 10000, 1.0, 0.05)
+        self.e = 0.5
+        self.nframes = 0
         self.learning_rate = 0.1
         self.discount = 0.9
         self.last_action = None
+        self.settings = ', '.join(['chain_length {}'.format(chain_length),
+                                   'e_params {}'.format(self.e_params),
+                                   'learning_rate {}'.format(self.learning_rate),
+                                   'discount {}'.format(self.discount)
+                                   ])
+
+    def update_e(self):
+        self.e = linear_latch(self.nframes, *self.e_params)
 
     def select_action(self, state, available_actions):
         """Returns one of the actions given in available_actions.
         """
         # Always take random action first
         action = self.get_random_action(available_actions)
-        
+
         # Greedy action
         if random() > self.e and self.chain.full:
             res = self.get_greedy_action(available_actions)
@@ -35,9 +48,15 @@ class ActionChainAgent(Agent):
 
     def receive_reward(self, reward):
         for chain in sublists(self.chain):
-            state = chain[1:] # Consider the previous moves to be the current state
+            # Consider the previous moves to be the current state
+            state = chain[1:]
             action = chain[0]
             self.update_chain(state, action, reward)
+        self.on_frame_end()
+
+    def on_frame_end(self):
+        self.nframes += 1
+        self.update_e()
 
     def on_episode_start(self):
         pass
@@ -53,7 +72,8 @@ class ActionChainAgent(Agent):
             self.q[lhstate][action] = reward
         else:
             val = self.q[lhstate][action]
-            self.q[lhstate][action] = val + self.learning_rate*(reward - self.discount * val)
+            self.q[lhstate][action] = val + self.learning_rate * \
+                (reward - self.discount * val)
 
     def get_random_action(self, available_actions):
         return available_actions[randrange(len(available_actions))]
@@ -75,3 +95,11 @@ class ActionChainAgent(Agent):
                             best_value = val
         return best_action
 
+    def get_printable_settings(self):
+        """Called by the GameManager when it is
+        time to store this agent's settings
+
+        Returns a string or something that can be 
+        made into one by str()
+        """
+        return self.settings
