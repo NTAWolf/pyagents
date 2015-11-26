@@ -1,3 +1,4 @@
+from random import randrange
 
 class Agent(object):
     """This class defines the agent interface to be used in this project.
@@ -14,6 +15,9 @@ class Agent(object):
 
     def receive_reward(self, reward):
         raise NotImplementedError("Method not implemented")
+
+    def get_random_action(self, available_actions):
+        return available_actions[randrange(len(available_actions))]
 
     def on_episode_start(self):
         """Called on episode start by the GameManager

@@ -12,7 +12,7 @@ class UniformRandomAgent(Agent):
     def select_action(self, state, available_actions):
         """Returns one of the actions given in available_actions.
         """
-        return available_actions[randrange(len(available_actions))]
+        return self.get_random_action(available_actions)
 
     def receive_reward(self, reward):
         pass

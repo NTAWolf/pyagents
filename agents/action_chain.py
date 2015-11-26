@@ -1,4 +1,4 @@
-from random import randrange, random
+from random import random
 
 from . import Agent
 from util.collections import CircularList
@@ -24,7 +24,8 @@ class ActionChainAgent(Agent):
         self.last_action = None
         self.settings = ', '.join(['chain_length {}'.format(chain_length),
                                    'e_params {}'.format(self.e_params),
-                                   'learning_rate {}'.format(self.learning_rate),
+                                   'learning_rate {}'.format(
+                                       self.learning_rate),
                                    'discount {}'.format(self.discount)
                                    ])
 
@@ -74,9 +75,6 @@ class ActionChainAgent(Agent):
             val = self.q[lhstate][action]
             self.q[lhstate][action] = val + self.learning_rate * \
                 (reward - self.discount * val)
-
-    def get_random_action(self, available_actions):
-        return available_actions[randrange(len(available_actions))]
 
     def get_greedy_action(self, available_actions):
         # Do a tree search in the previously seen states
