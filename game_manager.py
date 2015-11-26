@@ -9,7 +9,7 @@ from datetime import datetime
 import os
 from threading import Thread
 import shutil
-import util
+import util.logging
 
 from ale_python_interface import ALEInterface
 
@@ -43,8 +43,8 @@ class GameManager(object):
         self.results_dir = os.path.join(results_dir, game_name[:-4] + now)
         self.initialize_results_dir(remove_old_results_dir)
 
-        self.log = util.Logger(('settings', 'action', 'episode', 'run'),
-                               'episode', os.path.join(self.results_dir, 'GameManager.log'))
+        self.log = util.logging.Logger(('settings', 'action', 'episode', 'run'),
+                                       'episode', os.path.join(self.results_dir, 'GameManager.log'))
 
         self.log.settings("game_name {}".format(game_name))
         self.log.settings("agent.name {}".format(agent.name))

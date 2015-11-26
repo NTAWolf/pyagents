@@ -1,7 +1,7 @@
 """This module contains methods that can aid in preprocessing a pixel stream
 """
 import numpy as np
-from util import product
+from util.listops import product
 
 _module_mem = dict()
 

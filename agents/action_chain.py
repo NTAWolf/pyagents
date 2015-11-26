@@ -1,30 +1,8 @@
 from random import randrange, random
 
 from . import Agent
-from util import CircularList
-
-
-def sublists(listlike, maxlen=None):
-    """Given [a b c d]
-        yields
-            [a]
-            [a b]
-            [a b c]
-            [a b c d]
-    """
-    for i in range(len(listlike)):
-        yield listlike[:i]
-
-def lh(listlike):
-    """list hash
-    """
-    if len(listlike) == 0:
-        return hash(None)
-    res = hash(listlike[0])
-    for v in listlike[1:]:
-        res = res ^ hash(v)
-    return res
-
+from util.collections import CircularList
+from util.listops import sublists, listhash
 
 
 class ActionChainAgent(Agent):
@@ -68,7 +46,7 @@ class ActionChainAgent(Agent):
         pass
 
     def update_chain(self, state, action, reward):
-        lhstate = lh(state)
+        lhstate = listhash(state)
         if not lhstate in self.q:
             self.q[lhstate] = dict()
         if not action in self.q[lhstate]:
@@ -86,7 +64,7 @@ class ActionChainAgent(Agent):
         best_action = None
         best_value = None
         for state in sublists(self.chain):
-            lhstate = lh(state)
+            lhstate = listhash(state)
             if lhstate in self.q:
                 s = self.q[lhstate]
                 for a in available_actions:
@@ -96,9 +74,4 @@ class ActionChainAgent(Agent):
                             best_action = a
                             best_value = val
         return best_action
-
-
-
-
-
 
