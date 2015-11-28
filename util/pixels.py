@@ -1,9 +1,11 @@
 """This module contains methods that can aid in preprocessing a pixel stream
 """
 import numpy as np
-from util.listops import product
+from scipy.misc import imresize
 
-_module_mem = dict()
+# from util.listops import product
+
+# _module_mem = dict()
 
 
 def pixel_max(*frames):
@@ -22,9 +24,7 @@ def pixel_avg(*frames):
     return np.average(np.stack(frames), axis=0)
 
 
-def scale(array2d, wanted_shape):
-    """Scales a 2d array (one frame) down to the wanted size.
-    It is expected that wanted_shape are smaller than array2d.shape.
+def scale(array, wanted_shape=(64,64)):
+    """Scales an array down to the wanted shape.
     """
-    raise NotImplementedError(
-        "Need to figure out something like bilinear interpolation")
+    return imresize(array.squeeze(), wanted_shape, 'bilinear'))

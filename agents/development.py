@@ -1,5 +1,6 @@
-from basis import Agent
 import threading
+
+from . import Agent
 
 
 class StoppableThread(threading.Thread):
@@ -36,6 +37,8 @@ class DevelopmentAgent(Agent):
         self.storage = storage
         self.thread_event = thread_event
 
+        print "Note that the step-through does not work"
+
     def select_action(self, state, available_actions):
         """Returns one of the actions given in available_actions.
         """
@@ -60,3 +63,6 @@ class DevelopmentAgent(Agent):
 
     def on_episode_end(self):
         print "Agent sees that episode ends"
+
+    def get_printable_settings(self):
+        return "None"

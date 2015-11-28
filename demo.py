@@ -1,5 +1,5 @@
-from basis import GameManager
-from agents.uniform_random import UniformRandomAgent
+from game_manager import GameManager
+from agents import UniformRandomAgent
 
 agent = UniformRandomAgent()
 gm = GameManager("alien.bin", agent, 'demo_results')
