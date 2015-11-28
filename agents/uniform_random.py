@@ -23,12 +23,12 @@ class UniformRandomAgent(Agent):
     def on_episode_end(self):
         pass
 
-    def get_printable_settings(self):
+    def get_settings(self):
         """Called by the GameManager when it is
-        time to store this agent's settings
+        time to store this object's settings
 
-        Returns a string or something that can be 
-        made into one by str()
+        Returns a dict representing the settings needed to 
+        reproduce this object.
         """
-        return ""
+        return dict()
 

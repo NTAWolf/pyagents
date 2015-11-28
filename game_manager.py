@@ -23,14 +23,18 @@ class GameManager(object):
     a game across episodes, as well as overall logging of performance.
     """
 
-    def __init__(self, game_name, agent, results_dir, remove_old_results_dir=False, use_minimal_action_set=True, visualise=None):
+    def __init__(self, game_name, agent, results_dir,
+                 remove_old_results_dir=False, use_minimal_action_set=True, 
+                 visualise=None):
         """game_name is one of the supported games (there are many), as a string: "space_invaders.bin"
         agent is an an instance of a subclass of the Agent interface
         results_dir is a string representing a directory in which results and logs are placed
             If it does not exist, it is created.
         use_minimal_action_set determines whether the agent is offered all possible actions,
             or only those (minimal) that are applicable to the specific game.
-        visualise is None for no visualization (default), or one of 'raw', 'ram', 'grey', 'rgb'
+        visualise is None for no visualization (default), or one of 'raw', 'ram', 'grey', 'rgb',
+            or a method that takes as an argument the GameManager's list of methods (its 
+            state_functions) and returns a new method that returns an np.array for Visualiser.
             The RAM vector is reshaped to a 8x16 array.
         """
         self.game_name = game_name
@@ -46,14 +50,16 @@ class GameManager(object):
         self.log = util.logging.Logger(('settings', 'action', 'episode', 'run'),
                                        'episode', os.path.join(self.results_dir, 'GameManager.log'))
 
-        self.log.settings("game_name {}".format(game_name))
-        self.log.settings("agent.name {}".format(agent.name))
-        self.log.settings("agent.version {}".format(agent.version))
-        self.log.settings("agent settings: {}".format(self.agent.get_printable_settings()))
-        self.log.settings("results_dir {}".format(results_dir))
-        self.log.settings(
-            "use_minimal_action_set {}".format(use_minimal_action_set))
-        self.log.settings("visualise {}".format(visualise))
+        self.settings = dict([
+            ("game_name", self.game_name),
+            ("agent", self.agent.get_settings()),
+            ("results_dir", self.results_dir),
+            ("use_minimal_action_set", self.use_minimal_action_set),
+            ("visualise", self.visualise),
+        ])
+
+        for k, v in self.settings.iteritems():
+            self.log.settings("{} {}".format(k, v))
 
         self._object_cache = dict()
 
@@ -84,6 +90,8 @@ class GameManager(object):
                 callback = self.get_screen_grayscale
             elif self.visualise == 'rgb':
                 callback = self.get_screen_RGB
+            else:
+                callback = self.visualise(self.state_functions)
 
             self.visualiser = Visualiser(callback, framerate,
                                          title="{}: {}".format(self.game_name, self.visualise))
@@ -201,3 +209,9 @@ class GameManager(object):
             self._object_cache[key] = func()
 
         return self._object_cache[key]
+
+    def get_settings(self):
+        """Returns a dict representing the settings needed to 
+        reproduce this object and its subobjects
+        """
+        return self.settings

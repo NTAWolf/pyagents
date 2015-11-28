@@ -22,12 +22,13 @@ class ActionChainAgent(Agent):
         self.learning_rate = 0.1
         self.discount = 0.9
         self.last_action = None
-        self.settings = ', '.join(['chain_length {}'.format(chain_length),
-                                   'e_params {}'.format(self.e_params),
-                                   'learning_rate {}'.format(
-                                       self.learning_rate),
-                                   'discount {}'.format(self.discount)
-                                   ])
+        self.settings = dict([("name",self.name),
+                              ("version",self.version),
+                              ('chain_length', chain_length),
+                              ('e_params', self.e_params),
+                              ('learning_rate', self.learning_rate),
+                              ('discount', self.discount)
+                             ])
 
     def update_e(self):
         self.e = linear_latch(self.nframes, *self.e_params)
@@ -93,11 +94,11 @@ class ActionChainAgent(Agent):
                             best_value = val
         return best_action
 
-    def get_printable_settings(self):
+    def get_settings(self):
         """Called by the GameManager when it is
-        time to store this agent's settings
+        time to store this object's settings
 
-        Returns a string or something that can be 
-        made into one by str()
+        Returns a dict representing the settings needed to 
+        reproduce this object.
         """
         return self.settings

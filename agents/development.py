@@ -65,4 +65,4 @@ class DevelopmentAgent(Agent):
         print "Agent sees that episode ends"
 
     def get_printable_settings(self):
-        return "None"
+        return dict()
