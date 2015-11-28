@@ -1,6 +1,5 @@
-- Add a tool for aggregating relevant results
-	- Learn what results are relevant
-- Make a list of wanted basic agents
-	- Consider how agents might be broken into subparts that can be shared
+Consider this:
+Use raw colors: Split into 128 channels, resize them down 
+	In the first 3 episodes: Learn the used colours for the particular game.
 
-Maybe I can use RF on the RAM?
+Find a good structure for storing experiment settings in a way that is easy to mine.
