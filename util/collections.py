@@ -12,12 +12,16 @@ class CircularList(object):
         # looping
         self.full = False
 
-    def insert(self, value):
+    def append(self, value):
         self.i += 1
         if self.i >= len(self.data):
             self.i = 0
             self.full = True
         self.data[self.i] = value
+
+    def insert(self, value):
+        print "CircularList.insert is deprecated!"
+        self.append(value)
 
     def batch_insert(self, values):
         for v in values:
@@ -66,3 +70,9 @@ class CircularList(object):
         if self.full:
             return len(self.data)
         return self.i + 1
+
+    def __repr__(self):
+        return str(self[:])
+
+    def capacity(self):
+        return len(self.data)

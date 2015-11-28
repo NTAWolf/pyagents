@@ -1,35 +1,9 @@
-"""This module contains methods that can aid in preprocessing a pixel stream
-"""
-import numpy as np
+from random import randrange
+
 from scipy.misc import imresize
+import numpy as np
 
-# from util.listops import product
-
-# _module_mem = dict()
-
-
-def pixel_max(*frames):
-    """Takes any number of frames as separate arguments and
-    returns a pixel buffer with the maximum value per pixel across
-    the frames given.
-    """
-    return np.max(np.stack(frames), axis=0)
-
-
-def pixel_avg(*frames):
-    """Takes any number of frames as separate arguments and
-    returns a pixel buffer with the average value per pixel across
-    the frames given.
-    """
-    return np.average(np.stack(frames), axis=0)
-
-
-def scale(array, wanted_shape=(64,64)):
-    """Scales an array down to the wanted shape.
-    """
-    return imresize(array.squeeze(), wanted_shape, 'bilinear'))
-
-
+from .collections import CircularList
 
 class Preprocessor(object):
     """This class encapsulates preprocessing settings
@@ -123,3 +97,14 @@ class Preprocessor(object):
             ('n_frame_concat', self._processed.capacity()),
             ('n_frame_max', self._unprocessed.capacity()),
         ])
+
+# Rough interface estimate. Up for change.
+class DummyCNN(object):
+    def __init__(self, n_outputs):
+        self.n_outputs = n_outputs
+
+    def train(self, memory):
+        pass
+
+    def predict(self, state):
+        return randrange(self.n_outputs)
