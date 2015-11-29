@@ -1,7 +1,11 @@
+import numpy as np
+import theano.tensor as T
+import theano
+import lasagne as nom
+
 from random import randrange
 
 from scipy.misc import imresize
-import numpy as np
 
 from .collections import CircularList
 
@@ -98,8 +102,24 @@ class Preprocessor(object):
             ('n_frame_max', self._unprocessed.capacity()),
         ])
 
+
+class NN(object):
+    """
+    Base class for neural network providing a uniform interface to build, 
+    train and evaluate various networks.
+    """
+    def __init__(self, name, version):
+        pass
+
+    def train(self, td):
+        raise NotImplementedError()
+
+    def predict(self, state):
+        raise NotImplementedError()
+
+
 # Rough interface estimate. Up for change.
-class DummyCNN(object):
+class DummyCNN(NN):
     def __init__(self, n_outputs):
         self.n_outputs = n_outputs
 
@@ -108,3 +128,166 @@ class DummyCNN(object):
 
     def predict(self, state):
         return randrange(self.n_outputs)
+
+
+class CNN(NN):
+    """
+    Convolutional Neural Networks! Yay
+    """
+    def __init__(
+            self, n_inputs=(64, 64), n_output=16, n_channels=4, config='deepmind', gamma=0.99,
+            target_copy_interval=10):
+        super(CNN, self).__init__(name='CNN', version='1')
+        try:
+            self.network, self.train_fn = self.configurations[config](n_inputs, n_output, n_channels)
+        except KeyError:
+            print "Invalid network configuration, choose one of {}".format(self.configurations.keys())
+            raise
+
+        # Some previous network configuration
+        self.p_network = self.network
+        self.gamma = gamma
+        self.target_copy_interval = target_copy_interval
+        self.iteration = 0
+
+
+    def _make_targets(self, reward, next_state):
+        # target value y = r_j                                 if episode terminates at time j+1
+        #                  r_j + g*max_a' Q'(s_{t+1}, a'; W')  otherwise 
+        # TODO: how do I detect a terminal state?
+        if not next_state:
+            return reward
+        else:
+            output = lasagna.layers.get_output(self.p_network, next_state)
+            return reward + self.gamma * output.max()
+        
+
+    def train(self, memory):
+        """
+        experience is a list of state-action-reward-state' tuples
+        """
+
+        self.iteration += 1
+        train_err = 0
+        train_batches = 0
+        start_time = time.time()
+
+        # sample random minibatch from experience
+        for mem in memory.uniform_random_sample(32):
+            s, a, r, s_n = mem
+            target = self._make_target(r, s_n)
+            train_err += train_fn(s, target, a)
+            train_batches += 1
+
+        # reset the 'target network' every target_copy_interval iterations
+        if self.iteration % self.target_copy_interval == 0:
+            params = nom.layers.helpers.get_all_param_values(self.network)
+            nom.layers.helpers.set_all_param_values(self.p_network, params)
+
+        # Then we print the results for this training set
+        print "Training took {:.3f}s, loss: {:.6f}".format(time.time() - start_time, train_err / train_batches)
+
+
+    def predict(self, state):
+        pass
+
+
+    def _build_deepmind(n_inputs, n_output, n_channels):
+        """
+        Builds the CNN used in the Google deepmind Atari paper (doi:10.1038)
+
+        Input layer:
+            64x64x4
+        1st hidden: 
+            32 filters of 8x8, stride 4 Rectifier
+        2nd hidden:
+            64 filters of 4x4, stride 2 Rectifier
+        3rd hidden:
+            64 filters of 3x3, stride 1 Rectifier
+        4th hidden:
+            512 fully-connected rectifier units
+        Output layer:
+            4-18 fully connected linear units
+
+        The first 3 hidden layers are essentially filters, with an output of
+        max(0, x), where x is the maximum pixel value observed in the filter
+        window.
+
+        TODO: does the filter used in the paper in fact just return 
+        max(pixels)?
+
+        The output neurons represent the Value of performing the action mapped
+        to the neuron given the state that is fed into the input layer, ie.
+        the Q-value
+        """
+
+        # POW: input_var must be a parameter in the network creation, otherwise
+        #      Theano cannot make the connection between the loss function
+        #      parameter 'inputs' and the inputs to the network
+        input_var = T.tensor4('input')   # dimensions: num_batch * num_features
+        
+        # input layer with (unknown_batch_size, n_channels, n_rows, n_columns)
+        l_in = nom.layers.InputLayer(
+            shape=(None, n_channels, n_inputs[0], n_inputs[1]),
+            input_var=input_var)
+
+        # first hidden layer
+        l_h1 = nom.layers.Conv2DLayer(
+            l_in, num_filters=32, filter_size=(8, 8), stride=(4, 4),
+            nonlinearity=nom.nonlinearities.rectify,
+            W=nom.init.GlorotUniform())
+
+        # second hidden layer
+        l_h2 = nom.layers.Conv2DLayer(
+            l_h1, num_filters=64, filter_size=(4, 4), stride=(2, 2),
+            nonlinearity=nom.nonlinearities.rectify,
+            W=nom.init.GlorotUniform())
+
+        # third hidden layer
+        l_h3 = nom.layers.Conv2DLayer(
+            l_h2, num_filters=64, filter_size=(3, 3), stride=(1, 1),
+            nonlinearity=nom.nonlinearities.rectify,
+            W=nom.init.GlorotUniform())
+        
+        # fourth hidden layer
+        l_h4 = nom.layers.DenseLayer(
+            l_h3, num_units=512, 
+            nonlinearity=nom.nonlinearities.rectify)
+
+        # output layer
+        l_out = nom.layers.DenseLayer(
+            l_h4, num_units=n_output)
+
+
+        # Prepare Theano variables for inputs and targets
+        action_var = T.iscalar('action')  # dimensions: num_batch
+        target_var = T.ivector('target')  # dimensions: num_batch
+        output_var = nom.layers.get_output(l_out)
+
+        # Create a loss expression for training, i.e., a scalar objective that should
+        # be minimised. We are using a simple squared_error function like in the paper
+        # TODO: updates are done using the SE of just the action that was performed
+        #       in this given sample. Therefore, the loss function should just
+        #       calculate the SE(y - Q(s, a)) for a particular a, not all a...
+        prediction = nom.layers.get_output(l_out)
+        loss = (prediction[action_var] - target_var)**2
+        loss = loss.mean()
+
+        # Create update expressions for training, i.e., how to modify the
+        # parameters at each training step. Here, we'll use Stochastic Gradient
+        # Descent (SGD) with Nesterov momentum, but Nom offers plenty more.
+        params = nom.layers.get_all_params(l_out, trainable=True)
+        updates = nom.updates.nesterov_momentum(
+            loss, params, learning_rate=0.01, momentum=0.9)
+
+        # Compile a function performing a training step on a mini-batch (by giving
+        # the updates dictionary) and returning the corresponding training loss:
+        train_fn = theano.function([input_var, target_var, action_var], loss, updates=updates)
+
+        return l_out, train_fn
+
+
+    configurations = {
+        'deepmind': _build_deepmind
+    }
+
