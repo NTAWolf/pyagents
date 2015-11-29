@@ -3,7 +3,7 @@ import numpy as np
 from . import Agent
 from util.collections import CircularList
 from util.managers import RepeatManager, LinearInterpolationManager
-from util.nn import Preprocessor, DummyCNN
+from util.nn import Preprocessor, DummyCNN, CNN
 
 class DLAgent(Agent):
     """Agent using keras CNN
@@ -44,7 +44,7 @@ class DLAgent(Agent):
         self.epsilon = LinearInterpolationManager([(0, 1.0), (1e4, 0.1)])
         self.action_repeat_manager = RepeatManager(n_frames_per_action - 1)
         self._sar = None  # state, action, reward
-        self.cnn = None
+        self.cnn = CNN(config='deepmind')
 
     def select_action(self, state, available_actions):
         """Returns one of the actions given in available_actions.

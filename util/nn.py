@@ -2,6 +2,7 @@ import numpy as np
 import theano.tensor as T
 import theano
 import lasagne as nom
+import time
 
 from random import randrange
 
@@ -173,10 +174,16 @@ class CNN(NN):
         start_time = time.time()
 
         # sample random minibatch from experience
-        for mem in memory.uniform_random_sample(32):
+        try:
+            samples = memory.uniform_random_sample(32)
+        except ValueError:
+            # TODO: that's a bit hacky
+            return
+
+        for mem in samples:
             s, a, r, s_n = mem
             target = self._make_target(r, s_n)
-            train_err += train_fn(s, target, a)
+            train_err += self.train_fn(s, target, a)
             train_batches += 1
 
         # reset the 'target network' every target_copy_interval iterations
@@ -189,7 +196,14 @@ class CNN(NN):
 
 
     def predict(self, state):
-        pass
+        # TODO: we want to get the index corresponding to the maximum
+        #       value of the network outputs (ie, argmax_a Q(s, a))
+        #       get_output returns a theano expression that is evaluated
+        #       using eval(). See here:
+        #       https://github.com/Lasagne/Lasagne/issues/475
+        outputs = nom.layers.get_output(self.network)
+        print "outputs {}".format(outputs.eval())
+        return 0
 
 
     def _build_deepmind(n_inputs, n_output, n_channels):
