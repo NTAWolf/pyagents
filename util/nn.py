@@ -210,7 +210,7 @@ class CNN(NN):
         Builds the CNN used in the Google deepmind Atari paper (doi:10.1038)
 
         Input layer:
-            64x64x4
+            64x64x4 (84x84x4 in the paper)
         1st hidden: 
             32 filters of 8x8, stride 4 Rectifier
         2nd hidden:
@@ -267,15 +267,15 @@ class CNN(NN):
             l_h3, num_units=512, 
             nonlinearity=nom.nonlinearities.rectify)
 
-        # output layer
+        # output layer: linearity must be explicit
         l_out = nom.layers.DenseLayer(
-            l_h4, num_units=n_output)
+            l_h4, num_units=n_output,
+            nonlinearity=None)
 
 
         # Prepare Theano variables for inputs and targets
         action_var = T.iscalar('action')  # dimensions: num_batch
-        target_var = T.ivector('target')  # dimensions: num_batch
-        output_var = nom.layers.get_output(l_out)
+        target_var = T.fvector('target')  # dimensions: num_batch
 
         # Create a loss expression for training, i.e., a scalar objective that should
         # be minimised. We are using a simple squared_error function like in the paper
@@ -295,7 +295,8 @@ class CNN(NN):
 
         # Compile a function performing a training step on a mini-batch (by giving
         # the updates dictionary) and returning the corresponding training loss:
-        train_fn = theano.function([input_var, target_var, action_var], loss, updates=updates)
+        train_fn = theano.function([input_var, target_var, action_var], loss, 
+                                   updates=updates, allow_input_downcast=True)
 
         return l_out, train_fn
 
