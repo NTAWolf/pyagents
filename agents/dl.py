@@ -67,7 +67,9 @@ class DLAgent(Agent):
             self._sars[3] = s
             self.flush_experience()
 
-        self.cnn.train(self.experience)  # Interface may change
+        # Consider postponing the first training until we have 32 samples
+        if len(self.experience) > 0:
+            self.cnn.train(self.experience)
 
         if np.random.random() < self.epsilon.next():
             action = self.get_random_action(available_actions)

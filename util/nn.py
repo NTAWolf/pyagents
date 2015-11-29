@@ -1,14 +1,14 @@
-import numpy as np
-import theano.tensor as T
-import theano
-import lasagne as nom
+from random import randrange
 import time
 
-from random import randrange
-
+import lasagne as nom
+import numpy as np
 from scipy.misc import imresize
+import theano.tensor as T
+import theano
 
 from .collections import CircularList
+
 
 class Preprocessor(object):
     """This class encapsulates preprocessing settings
@@ -152,20 +152,21 @@ class CNN(NN):
         self.iteration = 0
 
 
-    def _make_targets(self, reward, next_state):
+    def _make_target(self, reward, next_state):
         # target value y = r_j                                 if episode terminates at time j+1
         #                  r_j + g*max_a' Q'(s_{t+1}, a'; W')  otherwise 
-        # TODO: how do I detect a terminal state?
-        if not next_state:
+
+        # Terminal state?
+        if next_state is None:
             return reward
         else:
-            output = lasagna.layers.get_output(self.p_network, next_state)
-            return reward + self.gamma * output.max()
+            Qs_a_ = nom.layers.get_output(self.p_network, next_state)
+            return reward + self.gamma * Qs_a_.max()
         
 
     def train(self, memory):
         """
-        experience is a list of state-action-reward-state' tuples
+        memory is a list of state-action-reward-state' tuples
         """
 
         self.iteration += 1
@@ -173,12 +174,10 @@ class CNN(NN):
         train_batches = 0
         start_time = time.time()
 
-        # sample random minibatch from experience
-        try:
-            samples = memory.uniform_random_sample(32)
-        except ValueError:
-            # TODO: that's a bit hacky
-            return
+        # sample random minibatch from memory
+        # Should not raise ValueError anymore, as train is only called
+        # when memory has content.
+        samples = memory.uniform_random_sample(32)
 
         for mem in samples:
             s, a, r, s_n = mem
