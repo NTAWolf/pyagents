@@ -1,3 +1,5 @@
+import numpy as np
+
 class CircularList(object):
     """A circular list that stores items in order.
     It is intended for use in experience replay.
