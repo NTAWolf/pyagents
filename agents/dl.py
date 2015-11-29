@@ -5,6 +5,7 @@ from util.collections import CircularList
 from util.managers import RepeatManager, LinearInterpolationManager
 from util.nn import Preprocessor, DummyCNN, CNN
 
+
 class DLAgent(Agent):
     """Agent using keras CNN
     Preprocesses input rgb frame:
@@ -43,6 +44,7 @@ class DLAgent(Agent):
                                          n_frame_concat=3, n_frame_max=1)
         self.epsilon = LinearInterpolationManager([(0, 1.0), (1e4, 0.1)])
         self.action_repeat_manager = RepeatManager(n_frames_per_action - 1)
+
         self._sar = None  # state, action, reward
         self.cnn = CNN(config='deepmind')
 
@@ -50,6 +52,7 @@ class DLAgent(Agent):
         """Returns one of the actions given in available_actions.
         """
 
+        # Repeat last chosen action?
         action = self.action_repeat_manager.next()
         if action != None:
             return action
@@ -58,31 +61,43 @@ class DLAgent(Agent):
             print "Using DummyCNN"
             self.cnn = DummyCNN(len(available_actions))
 
-        pre = self.preprocessor.process(state)
+        s = self.preprocessor.process(state)
 
-        if self._sar:
-            self.experience.append(tuple(self._sar + [pre]))
-        self.cnn.train(self.experience) # Interface may change
+        if self._sars[2]:
+            self._sars[3] = s
+            self.flush_experience()
+
+        self.cnn.train(self.experience)  # Interface may change
 
         if np.random.random() < self.epsilon.next():
             action = self.get_random_action(available_actions)
         else:
-            action_index = self.cnn.predict(pre)
+            action_index = self.cnn.predict(s)
             action = available_actions[action_index]
 
-        self._sar = [pre, action, None]
         self.action_repeat_manager.set(action)
+
+        self._sars[0] = s
+        self._sars[1] = action
 
         return action
 
     def receive_reward(self, reward):
-        self._sar[2] = reward
+        self._sars[2] = reward
 
     def on_episode_start(self):
-        pass
+        self._reset_sars()
 
     def on_episode_end(self):
-        pass
+        self.flush_experience()
+
+    def flush_experience(self):
+        self.experience.append(tuple(self._sars))
+        self._reset_sars()
+
+    def _reset_sars(self):
+        # state, action, reward, newstate
+        self._sars = [None, None, None, None]
 
     def get_settings(self):
         """Called by the GameManager when it is
@@ -100,7 +115,3 @@ class DLAgent(Agent):
             ("epsilon", self.epsilon.get_settings()),
             # cnn
         ])
-
-
-
-
