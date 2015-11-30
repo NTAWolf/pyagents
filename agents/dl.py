@@ -102,18 +102,16 @@ class DLAgent(Agent):
         self._sars = [None, None, None, None]
 
     def get_settings(self):
-        """Called by the GameManager when it is
-        time to store this object's settings
+        settings =  {
+            "name": self.name,
+            "version": self.version,
+            "n_frames_per_action": self.n_frames_per_action,
+            "experience_replay": self.experience.capacity(),
+            "preprocessor": self.preprocessor.get_settings(),
+            "epsilon": self.epsilon.get_settings(),
+            "cnn": self.cnn.get_settings(),
+        }
 
-        Returns a dict representing the settings needed to 
-        reproduce this object.
-        """
-        return dict([
-            ("name", self.name),
-            ("version", self.version),
-            ("n_frames_per_action", self.n_frames_per_action),
-            ("experience_replay", self.experience.capacity()),
-            ("preprocessor", self.preprocessor.get_settings()),
-            ("epsilon", self.epsilon.get_settings()),
-            ("cnn", self.cnn.get_settings())
-        ])
+        settings.update(super(DLAgent, self).get_settings())
+
+        return settings

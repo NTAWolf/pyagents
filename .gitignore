@@ -1,5 +1,6 @@
 *.pyc
 *.ipynb_checkpoints
+*.ipynb
 results
 experiments/*results
 dev_results

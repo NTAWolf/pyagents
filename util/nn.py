@@ -91,17 +91,11 @@ class Preprocessor(object):
         return frames
 
     def get_settings(self):
-        """Called by the GameManager when it is
-        time to store this object's settings
-
-        Returns a dict representing the settings needed to 
-        reproduce this object.
-        """
-        return dict([
-            ('scale_shape', self.scale_shape),
-            ('n_frame_concat', self._processed.capacity()),
-            ('n_frame_max', self._unprocessed.capacity()),
-        ])
+        return {
+            'scale_shape': self.scale_shape,
+            'n_frame_concat': self._processed.capacity(),
+            'n_frame_max': self._unprocessed.capacity(),
+        }
 
 
 class NN(object):
@@ -120,16 +114,10 @@ class NN(object):
         raise NotImplementedError()
 
     def get_settings(self):
-        """Called by the GameManager when it is
-        time to store this object's settings
-
-        Returns a dict representing the settings needed to 
-        reproduce this object.
-        """
-        return dict([
-            ("name", self.name),
-            ("version", self.version),
-        ])
+        return {
+            "name": self.name,
+            "version": self.version,
+        }
 
 
 
@@ -143,11 +131,6 @@ class DummyCNN(NN):
 
     def predict(self, state):
         return randrange(self.n_outputs)
-
-    def get_settings(self):
-        settings =  dict([])
-        settings.update(super(DummyCNN, self).get_settings())
-        return settings
         
 
 
@@ -221,7 +204,7 @@ class CNN(NN):
         #       using eval(). See here:
         #       https://github.com/Lasagne/Lasagne/issues/475
         outputs = nom.layers.get_output(self.network)
-        print "outputs {}".format(outputs.eval())
+        # print "outputs {}".format(outputs.eval())
         return 0
 
 
@@ -351,11 +334,12 @@ class CNN(NN):
         layers = nom.layers.get_all_layers(self.network)
         network = map(self._get_layer_settings, layers)
         
-        settings =  dict([
-            ("gamma", self.gamma),
-            ("target_copy_interval", self.target_copy_interval),
-            ("network", network),
-        ])
+        settings = {
+            "gamma": self.gamma,
+            "target_copy_interval": self.target_copy_interval,
+            "network": network,
+        }
+
         settings.update(super(CNN, self).get_settings())
 
         return settings

@@ -84,4 +84,4 @@ class LinearInterpolationManager(object):
         Returns a dict representing the settings needed to 
         reproduce this object.
         """
-        return dict([("handles", self.handles)])
+        return {"handles": self.handles}

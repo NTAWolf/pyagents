@@ -1,5 +1,6 @@
 from random import randrange
 
+
 class Agent(object):
     """This class defines the agent interface to be used in this project.
     """
@@ -35,4 +36,6 @@ class Agent(object):
 
         Returns a dict
         """
-        raise NotImplementedError("Method not implemented")
+        return dict([("name", self.name),
+                     ("version", self.version),
+                     ])
