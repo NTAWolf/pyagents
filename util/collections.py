@@ -22,12 +22,8 @@ class CircularList(object):
         self.data[self.i] = value
 
     def uniform_random_sample(self, sample_size):
-        if self.full:
-            data = self.data
-        else:
-            data = self.data[:self.i + 1]
-        # TODO Why does this break?
-        return np.random.choice(data, sample_size, replace=True)  # uniform
+        indices = np.random.randint(len(self), size=sample_size)
+        return [self[i] for i in indices]
 
     def _is_valid_index(self, index):
         return index >= 0 and ((index < len(self.data)) if self.full else (index <= self.i))
