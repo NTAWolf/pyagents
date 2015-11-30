@@ -49,17 +49,7 @@ class GameManager(object):
 
         self.log = util.logging.Logger(('settings', 'action', 'episode', 'run'),
                                        'episode', os.path.join(self.results_dir, 'GameManager.log'))
-
-        self.settings = dict([
-            ("game_name", self.game_name),
-            ("agent", self.agent.get_settings()),
-            ("results_dir", self.results_dir),
-            ("use_minimal_action_set", self.use_minimal_action_set),
-            ("visualise", self.visualise),
-        ])
-
-        for k, v in self.settings.iteritems():
-            self.log.settings("{} {}".format(k, v))
+        self.dump_settings()
 
         self._object_cache = dict()
 
@@ -210,8 +200,22 @@ class GameManager(object):
 
         return self._object_cache[key]
 
+    def dump_settings(self):
+        import json
+
+        settings = self.get_settings()
+        path = os.path.join(self.results_dir, 'settings')
+        with open(path, 'w') as f:
+            json.dump(settings, path, indent=4)
+
     def get_settings(self):
         """Returns a dict representing the settings needed to 
         reproduce this object and its subobjects
         """
-        return self.settings
+        return dict([
+            ("game_name", self.game_name),
+            ("agent", self.agent.get_settings()),
+            ("results_dir", self.results_dir),
+            ("use_minimal_action_set", self.use_minimal_action_set),
+            ("visualise", self.visualise),
+        ])

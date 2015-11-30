@@ -115,5 +115,5 @@ class DLAgent(Agent):
             ("experience_replay", self.experience.capacity()),
             ("preprocessor", self.preprocessor.get_settings()),
             ("epsilon", self.epsilon.get_settings()),
-            # cnn
+            ("cnn", self.cnn.get_settings())
         ])
