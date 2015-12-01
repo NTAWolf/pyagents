@@ -214,7 +214,7 @@ class CNN(NN):
         # so the target value is a scalar corresponding to just one of the 
         # net work's outputs.
         target = (reward_t + (T.ones_like(terminal_t) - terminal_t) * self.gamma * T.max(next_q_vals, axis=1, keepdims=True))
-        diff = target_t - q_vals[T.arange(self.batch_size),
+        diff = target - q_vals[T.arange(self.batch_size),
                                action_t.reshape((-1,))].reshape((-1, 1))
 
         loss = 0.5* diff **2
@@ -231,7 +231,8 @@ class CNN(NN):
             states_t: self.states_shared,
             next_states_t: self.next_states_shared,
             reward_t: self.rewards_shared,
-            action_t: self.actions_shared
+            action_t: self.actions_shared,
+            terminal_t: self.terminals_shared
         }
 
         # Compile a function performing a training step on a mini-batch (by giving
@@ -333,9 +334,9 @@ class CNN(NN):
         # TODO: this probably isn't very efficient...?
         s, a, r, s_n, t = zip(*samples)
         s = np.array(s)
-        a = np.array(a).reshape((32, 1))
+        a = np.array(a, dtype=np.int32).reshape((32, 1))
         r = np.array(r).reshape((32, 1))
-        t = np.array(t).reshape((32, 1))
+        t = np.array(t, dtype=np.int32).reshape((32, 1))
         s_n = np.array(s_n)
         # print "sample={}".format(s)
         # print "actions={}".format(a)
@@ -355,8 +356,8 @@ class CNN(NN):
 
         # reset the 'target network' every target_copy_interval iterations
         if self.iteration % self.target_copy_interval == 0:
-            params = nom.layers.helpers.get_all_param_values(self.network)
-            nom.layers.helpers.set_all_param_values(self.network_next, params)
+            params = nom.layers.get_all_param_values(self.network)
+            nom.layers.set_all_param_values(self.network_next, params)
 
         # Then we print the results for this training set
         print "Training took {}s, loss: {}".format(time.time() - start_time, loss)
