@@ -53,9 +53,6 @@ class DLAgent(Agent):
         if action != None:
             return action
 
-        if self.cnn == None:
-            print "Using DummyCNN"
-
         s = self.preprocessor.process(state)
 
         if self._sars[2]:
@@ -67,7 +64,7 @@ class DLAgent(Agent):
             self.cnn.train(self.experience)
 
         if np.random.random() < self.epsilon.next():
-            action = self.get_random_action(self.available_actions)
+            action = self.get_random_action()
         else:
             action_index = self.cnn.predict(s)
             action = self.available_actions[action_index]

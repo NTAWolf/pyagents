@@ -26,15 +26,13 @@ class ActionChainAgent(Agent):
     def update_e(self):
         self.e = linear_latch(self.nframes, *self.e_params)
 
-    def select_action(self, state, available_actions):
-        """Returns one of the actions given in available_actions.
-        """
+    def select_action(self, state):
         # Always take random action first
-        action = self.get_random_action(available_actions)
+        action = self.get_random_action()
 
         # Greedy action
         if random() > self.e and self.chain.full:
-            res = self.get_greedy_action(available_actions)
+            res = self.get_greedy_action(self.available_actions)
             if res is not None:
                 action = res
 

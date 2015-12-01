@@ -49,7 +49,6 @@ class GameManager(object):
 
         self.log = util.logging.Logger(('settings', 'action', 'episode', 'run'),
                                        'episode', os.path.join(self.results_dir, 'GameManager.log'))
-        self.dump_settings()
 
         self._object_cache = dict()
 
@@ -115,6 +114,8 @@ class GameManager(object):
         self.episodes_passed = 0
 
         self.initialize_visualiser()
+        self.dump_settings()
+        
 
     def run(self, n_episodes=None, n_frames=None):
         """Run the wanted number of episodes or the wanted number of frames. 
