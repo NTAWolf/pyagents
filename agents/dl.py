@@ -86,6 +86,7 @@ class DLAgent(Agent):
         self._reset_sars()
 
     def on_episode_end(self):
+        self._sars[3] = self._sars[0]
         self._sars[4] = 0
         self.flush_experience()
 
