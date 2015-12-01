@@ -136,11 +136,12 @@ class CNN(NN):
     Convolutional Neural Networks! Yay
     """
     def __init__(
-            self, n_inputs=(64, 64), n_output=16, n_channels=4, config='deepmind', gamma=0.99,
-            target_copy_interval=10):
+            self, n_inputs=(64, 64), n_output=16, n_channels=4, 
+            config='deepmind', gamma=0.99, target_copy_interval=10,
+            batch_size=32):
         super(CNN, self).__init__(name='CNN', version='1')
         try:
-            self.network, self.train_fn = self.configurations[config](n_inputs, n_output, n_channels)
+            self.network, self.train_fn = self.configurations[config](n_inputs, n_output, n_channels, batch_size)
         except KeyError:
             print "Invalid network configuration, choose one of {}".format(self.configurations.keys())
             raise
@@ -160,7 +161,10 @@ class CNN(NN):
         if next_state is None:
             return reward
         else:
-            Qs_a_ = nom.layers.get_output(self.p_network, next_state)
+            output_expr = nom.layers.get_output(self.p_network)
+            output_func = theano.function([T.ivector()], output_expr)
+            Qs_a_ = output_func(next_state)
+            print Qs_a_
             return reward + self.gamma * Qs_a_.max()
         
 
@@ -200,12 +204,12 @@ class CNN(NN):
         #       get_output returns a theano expression that is evaluated
         #       using eval(). See here:
         #       https://github.com/Lasagne/Lasagne/issues/475
-        outputs = nom.layers.get_output(self.network)
-        print "outputs {}".format(outputs.eval())
+        q_vals = nom.layers.get_output(self.network, state)
+        print "outputs {}".format(outputs)
         return 0
 
 
-    def _build_deepmind(n_inputs, n_output, n_channels):
+    def _build_deepmind(n_inputs, n_output, n_channels, batch_size):
         """
         Builds the CNN used in the Google deepmind Atari paper (doi:10.1038)
 
@@ -273,15 +277,40 @@ class CNN(NN):
             nonlinearity=None)
 
 
-        # Prepare Theano variables for inputs and targets
-        action_var = T.iscalar('action')  # dimensions: num_batch
-        target_var = T.fvector('target')  # dimensions: num_batch
+        # Theano variable types for compiled theano expressions.
+        # 
+        # lasagne uses theano expressions internally. get_outputs(layer) for
+        # example, returns a theano expression that must be evaluated to get
+        # the actual values present at the output neurons. 
+        # 
+        # These expressions and functions (like the loss function) are
+        # defined here for future use. They are strongly typed and hence the
+        # parameter types must be declared explicitly. That's what is done
+        # here.
+        
+        # s, a, r, s types for network training/evaluation when using the
+        # memory
+        states_t = T.tensor4('states')
+        next_states_t = T.tensor4('next_states')
+        reward_t = T.col('rewards')
+        action_t = T.icol('actions')
 
-        # Create a loss expression for training, i.e., a scalar objective that should
-        # be minimised. We are using a simple squared_error function like in the paper
-        # TODO: updates are done using the SE of just the action that was performed
-        #       in this given sample. Therefore, the loss function should just
-        #       calculate the SE(y - Q(s, a)) for a particular a, not all a...
+        # Network outputs
+        q_vals = lasagne.layers.get_output(l_out, states_t)
+        next_q_vals = lasagne.layers.get_output(l_out, next_states_t)
+
+        # Create a loss expression for training, i.e., a scalar objective 
+        # that should be minimised. 
+        # 
+        # We are using a simple squared_error function like in the paper.
+        # However, the target value is defined as
+        #     t = r_t + discount * argmax_a' Q'(s, a')
+        # so the target value is a scalar corresponding to just one of the 
+        # network's outputs.
+        target = (reward_t + self.gamma * T.max(next_q_vals, axis=1, keepdims=True))
+        diff = target - q_vals[T.arange(batch_size),
+                               action_t.reshape((-1,))].reshape((-1, 1))
+
         prediction = nom.layers.get_output(l_out)
         loss = (prediction[action_var] - target_var)**2
         loss = loss.mean()
