@@ -21,20 +21,9 @@ class CircularList(object):
             self.full = True
         self.data[self.i] = value
 
-    def insert(self, value):
-        print "CircularList.insert is deprecated!"
-        self.append(value)
-
-    def batch_insert(self, values):
-        for v in values:
-            self.insert(v)
-
     def uniform_random_sample(self, sample_size):
-        if self.full:
-            data = self.data
-        else:
-            data = self.data[:self.i + 1]
-        return np.random.choice(data, sample_size, replace=True)  # uniform
+        indices = np.random.randint(len(self), size=sample_size)
+        return [self[i] for i in indices]
 
     def _is_valid_index(self, index):
         return index >= 0 and ((index < len(self.data)) if self.full else (index <= self.i))
@@ -53,7 +42,7 @@ class CircularList(object):
         return self.data[i]
 
     def __getitem__(self, key):
-        """index 0 is the most recent inserted object.
+        """index 0 is the most recent appended object.
         index length-1 is the oldest object in memory.
 
         Supports slice notation
@@ -77,4 +66,7 @@ class CircularList(object):
         return str(self[:])
 
     def capacity(self):
+        """Returns the full potential capacity of
+        this CircularList.
+        """
         return len(self.data)

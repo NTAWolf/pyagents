@@ -64,5 +64,5 @@ class DevelopmentAgent(Agent):
     def on_episode_end(self):
         print "Agent sees that episode ends"
 
-    def get_printable_settings(self):
-        return dict()
+    def get_settings(self):
+        return super(DevelopmentAgent, self).get_settings()

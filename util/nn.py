@@ -91,17 +91,11 @@ class Preprocessor(object):
         return frames
 
     def get_settings(self):
-        """Called by the GameManager when it is
-        time to store this object's settings
-
-        Returns a dict representing the settings needed to 
-        reproduce this object.
-        """
-        return dict([
-            ('scale_shape', self.scale_shape),
-            ('n_frame_concat', self._processed.capacity()),
-            ('n_frame_max', self._unprocessed.capacity()),
-        ])
+        return {
+            'scale_shape': self.scale_shape,
+            'n_frame_concat': self._processed.capacity(),
+            'n_frame_max': self._unprocessed.capacity(),
+        }
 
 
 class NN(object):
@@ -110,13 +104,21 @@ class NN(object):
     train and evaluate various networks.
     """
     def __init__(self, name, version):
-        pass
+        self.name = name
+        self.version = version
 
     def train(self, td):
         raise NotImplementedError()
 
     def predict(self, state):
         raise NotImplementedError()
+
+    def get_settings(self):
+        return {
+            "name": self.name,
+            "version": self.version,
+        }
+
 
 
 # Rough interface estimate. Up for change.
@@ -129,6 +131,7 @@ class DummyCNN(NN):
 
     def predict(self, state):
         return randrange(self.n_outputs)
+        
 
 
 class CNN(NN):
@@ -333,4 +336,40 @@ class CNN(NN):
     configurations = {
         'deepmind': _build_deepmind
     }
+
+    def _get_layer_settings(self, layer):
+        settings = {
+            'name': layer.name,
+            'type': str(type(layer)),
+            'input_shape': getattr(layer, 'input_shape' , None),
+            'output_shape': getattr(layer, 'output_shape' , None),
+            'nonlinearity': layer.nonlinearity.func_name if 'nonlinearity' in dir(layer) else None,
+            # Convolutional layers
+            'stride': getattr(layer, 'stride', None),
+            'num_filters': getattr(layer, 'num_filters', None),
+            'filter_size': getattr(layer, 'filter_size', None),
+            # Dense layers
+            'num_units': getattr(layer, 'num_units' , None),
+        }
+        
+        # Remove Nones
+        for k,v in list(settings.iteritems()):
+            if v is None:
+                del settings[k]
+
+        return settings
+
+    def get_settings(self):
+        layers = nom.layers.get_all_layers(self.network)
+        network = map(self._get_layer_settings, layers)
+        
+        settings = {
+            "gamma": self.gamma,
+            "target_copy_interval": self.target_copy_interval,
+            "network": network,
+        }
+
+        settings.update(super(CNN, self).get_settings())
+
+        return settings
 

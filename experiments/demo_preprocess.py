@@ -1,6 +1,6 @@
 from game_manager import GameManager
 from agents import UniformRandomAgent
-from agents.dl import Preprocessor
+from util.nn import Preprocessor
 
 from time import sleep
 

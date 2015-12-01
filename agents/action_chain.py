@@ -22,13 +22,6 @@ class ActionChainAgent(Agent):
         self.learning_rate = 0.1
         self.discount = 0.9
         self.last_action = None
-        self.settings = dict([("name",self.name),
-                              ("version",self.version),
-                              ('chain_length', chain_length),
-                              ('e_params', self.e_params),
-                              ('learning_rate', self.learning_rate),
-                              ('discount', self.discount)
-                             ])
 
     def update_e(self):
         self.e = linear_latch(self.nframes, *self.e_params)
@@ -45,7 +38,7 @@ class ActionChainAgent(Agent):
             if res is not None:
                 action = res
 
-        self.chain.insert(action)
+        self.chain.append(action)
         return action
 
     def receive_reward(self, reward):
@@ -95,10 +88,12 @@ class ActionChainAgent(Agent):
         return best_action
 
     def get_settings(self):
-        """Called by the GameManager when it is
-        time to store this object's settings
+        settings = {'chain_length': self.chain.capacity(),
+                    'e_params': self.e_params,
+                    'learning_rate': self.learning_rate,
+                    'discount': self.discount
+                    }
 
-        Returns a dict representing the settings needed to 
-        reproduce this object.
-        """
-        return self.settings
+        settings.update(super(ActionChainAgent, self).get_settings())
+
+        return settings

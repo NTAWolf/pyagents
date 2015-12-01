@@ -1,5 +1,0 @@
-Consider this:
-Use raw colors: Split into 128 channels, resize them down 
-	In the first 3 episodes: Learn the used colours for the particular game.
-
-Find a good structure for storing experiment settings in a way that is easy to mine.
