@@ -70,7 +70,7 @@ class DLAgent(Agent):
         self.action_repeat_manager.set(action)
 
         self._sars[0] = s
-        self._sars[1] = np.where(self.available_actions == action)[0][0]
+        self._sars[1] = self.available_actions.index(action)
 
         return action
 
