@@ -139,80 +139,112 @@ class CNN(NN):
     Convolutional Neural Networks! Yay
     """
     def __init__(
-            self, n_inputs=(64, 64), n_output=16, n_channels=4, 
+            self, n_inputs=(64, 64), n_outputs=12, n_channels=4, 
             config='deepmind', gamma=0.99, target_copy_interval=10,
             batch_size=32):
         super(CNN, self).__init__(name='CNN', version='1')
+
+        self.gamma = gamma
+        self.target_copy_interval = target_copy_interval
+        self.iteration = 0
+        self.batch_size = batch_size
+
+        configurations = {
+            'deepmind': self._build_deepmind
+        }
+
         try:
-            self.network, self.train_fn = self.configurations[config](n_inputs, n_output, n_channels, batch_size)
+            self.network = configurations[config](n_inputs, n_outputs, n_channels)
         except KeyError:
             print "Invalid network configuration, choose one of {}".format(self.configurations.keys())
             raise
 
+        self.network_next = self.network
+
+        # Theano variable types for compiled theano expressions.
+        # 
+        # lasagne uses theano expressions internally. get_outputs(layer) for
+        # example, returns a theano expression that must be evaluated to get
+        # the actual values present at the output neurons. 
+        # 
+        # These expressions and functions (like the loss function) are
+        # defined here for future use. They are strongly typed and hence the
+        # parameter types must be declared explicitly. That's what is done
+        # here.
+        
+        # s, a, r, s types for network training/evaluation when using the
+        # memory
+        states_t = T.tensor4('states')
+        next_states_t = T.tensor4('next_states')
+        reward_t = T.col('rewards')
+        action_t = T.icol('actions')
+
+
+        self.states_shared = theano.shared(
+            np.zeros((batch_size, 1, n_inputs[0], n_inputs[1]),
+                     dtype=theano.config.floatX))
+
+        self.next_states_shared = theano.shared(
+            np.zeros((batch_size, 1, n_inputs[0], n_inputs[1]),
+                     dtype=theano.config.floatX))
+
+        self.rewards_shared = theano.shared(
+            np.zeros((batch_size, 1), dtype=theano.config.floatX),
+            broadcastable=(False, True))
+
+        self.actions_shared = theano.shared(
+            np.zeros((batch_size, 1), dtype='int32'),
+            broadcastable=(False, True))
+
+        
+        # Network outputs
+        q_vals = nom.layers.get_output(self.network, states_t)
+        next_q_vals = nom.layers.get_output(self.network_next, next_states_t)
+
+        # Create a loss expression for training, i.e., a scalar objective 
+        # that should be minimised. 
+        # 
+        # We are using a simple squared_error function like in the paper.
+        # However, the target value is defined as
+        #     t = r_t + discount * argmax_a' Q'(s, a')
+        # so the target value is a scalar corresponding to just one of the 
+        # net work's outputs.
+        target = (reward_t + self.gamma * T.max(next_q_vals, axis=1, keepdims=True))
+        diff = target - q_vals[T.arange(self.batch_size),
+                               action_t.reshape((-1,))].reshape((-1, 1))
+
+        loss = 0.5* diff **2
+        loss = loss.mean()
+
+        # Create update expressions for training, i.e., how to modify the
+        # parameters at each training step. Here, we'll use Stochastic Gradient
+        # Descent (SGD) with Nesterov momentum, but Nom offers plenty more.
+        params = nom.layers.get_all_params(self.network, trainable=True)
+        updates = nom.updates.nesterov_momentum(
+            loss, params, learning_rate=0.01, momentum=0.9)
+
+        givens = {
+            states_t: self.states_shared,
+            next_states_t: self.next_states_shared,
+            reward_t: self.rewards_shared,
+            action_t: self.actions_shared
+        }
+
+        # Compile a function performing a training step on a mini-batch (by giving
+        # the updates dictionary) and returning the corresponding training loss:
+        self.train_fn = theano.function([], [loss, q_vals],
+                                        updates=updates, allow_input_downcast=True,
+                                        givens=givens)
+
+        self.predict_fn = theano.function([], q_vals,
+                                          allow_input_downcast=True,
+                                          givens={ states_t: self.states_shared})
+
         # Some previous network configuration
         self.p_network = self.network
-        self.gamma = gamma
-        self.target_copy_interval = target_copy_interval
-        self.iteration = 0
 
 
-    def _make_target(self, reward, next_state):
-        # target value y = r_j                                 if episode terminates at time j+1
-        #                  r_j + g*max_a' Q'(s_{t+1}, a'; W')  otherwise 
-
-        # Terminal state?
-        if next_state is None:
-            return reward
-        else:
-            output_expr = nom.layers.get_output(self.p_network)
-            output_func = theano.function([T.ivector()], output_expr)
-            Qs_a_ = output_func(next_state)
-            print Qs_a_
-            return reward + self.gamma * Qs_a_.max()
-        
-
-    def train(self, memory):
-        """
-        memory is a list of state-action-reward-state' tuples
-        """
-
-        self.iteration += 1
-        train_err = 0
-        train_batches = 0
-        start_time = time.time()
-
-        # sample random minibatch from memory
-        # Should not raise ValueError anymore, as train is only called
-        # when memory has content.
-        samples = memory.uniform_random_sample(32)
-
-        for mem in samples:
-            s, a, r, s_n = mem
-            target = self._make_target(r, s_n)
-            train_err += self.train_fn(s, target, a)
-            train_batches += 1
-
-        # reset the 'target network' every target_copy_interval iterations
-        if self.iteration % self.target_copy_interval == 0:
-            params = nom.layers.helpers.get_all_param_values(self.network)
-            nom.layers.helpers.set_all_param_values(self.p_network, params)
-
-        # Then we print the results for this training set
-        print "Training took {:.3f}s, loss: {:.6f}".format(time.time() - start_time, train_err / train_batches)
-
-
-    def predict(self, state):
-        # TODO: we want to get the index corresponding to the maximum
-        #       value of the network outputs (ie, argmax_a Q(s, a))
-        #       get_output returns a theano expression that is evaluated
-        #       using eval(). See here:
-        #       https://github.com/Lasagne/Lasagne/issues/475
-        q_vals = nom.layers.get_output(self.network, state)
-        print "outputs {}".format(outputs)
-        return 0
-
-
-    def _build_deepmind(n_inputs, n_output, n_channels, batch_size):
+    def _build_deepmind(self, n_inputs, n_output, n_channels):
         """
         Builds the CNN used in the Google deepmind Atari paper (doi:10.1038)
 
@@ -244,12 +276,9 @@ class CNN(NN):
         # POW: input_var must be a parameter in the network creation, otherwise
         #      Theano cannot make the connection between the loss function
         #      parameter 'inputs' and the inputs to the network
-        input_var = T.tensor4('input')   # dimensions: num_batch * num_features
-        
         # input layer with (unknown_batch_size, n_channels, n_rows, n_columns)
         l_in = nom.layers.InputLayer(
-            shape=(None, n_channels, n_inputs[0], n_inputs[1]),
-            input_var=input_var)
+            shape=(None, n_channels, n_inputs[0], n_inputs[1]))
 
         # first hidden layer
         l_h1 = nom.layers.Conv2DLayer(
@@ -279,63 +308,69 @@ class CNN(NN):
             l_h4, num_units=n_output,
             nonlinearity=None)
 
-
-        # Theano variable types for compiled theano expressions.
-        # 
-        # lasagne uses theano expressions internally. get_outputs(layer) for
-        # example, returns a theano expression that must be evaluated to get
-        # the actual values present at the output neurons. 
-        # 
-        # These expressions and functions (like the loss function) are
-        # defined here for future use. They are strongly typed and hence the
-        # parameter types must be declared explicitly. That's what is done
-        # here.
-        
-        # s, a, r, s types for network training/evaluation when using the
-        # memory
-        states_t = T.tensor4('states')
-        next_states_t = T.tensor4('next_states')
-        reward_t = T.col('rewards')
-        action_t = T.icol('actions')
-
-        # Network outputs
-        q_vals = lasagne.layers.get_output(l_out, states_t)
-        next_q_vals = lasagne.layers.get_output(l_out, next_states_t)
-
-        # Create a loss expression for training, i.e., a scalar objective 
-        # that should be minimised. 
-        # 
-        # We are using a simple squared_error function like in the paper.
-        # However, the target value is defined as
-        #     t = r_t + discount * argmax_a' Q'(s, a')
-        # so the target value is a scalar corresponding to just one of the 
-        # network's outputs.
-        target = (reward_t + self.gamma * T.max(next_q_vals, axis=1, keepdims=True))
-        diff = target - q_vals[T.arange(batch_size),
-                               action_t.reshape((-1,))].reshape((-1, 1))
-
-        prediction = nom.layers.get_output(l_out)
-        loss = (prediction[action_var] - target_var)**2
-        loss = loss.mean()
-
-        # Create update expressions for training, i.e., how to modify the
-        # parameters at each training step. Here, we'll use Stochastic Gradient
-        # Descent (SGD) with Nesterov momentum, but Nom offers plenty more.
-        params = nom.layers.get_all_params(l_out, trainable=True)
-        updates = nom.updates.nesterov_momentum(
-            loss, params, learning_rate=0.01, momentum=0.9)
-
-        # Compile a function performing a training step on a mini-batch (by giving
-        # the updates dictionary) and returning the corresponding training loss:
-        train_fn = theano.function([input_var, target_var, action_var], loss, 
-                                   updates=updates, allow_input_downcast=True)
-
-        return l_out, train_fn
+        return l_out
 
 
-    configurations = {
-        'deepmind': _build_deepmind
-    }
+    def train(self, memory):
+        """
+        memory is a list of state-action-reward-state' tuples
+        """
+
+        self.iteration += 1
+        train_err = 0
+        train_batches = 0
+        start_time = time.time()
+
+        # sample random minibatch from memory
+        # Should not raise ValueError anymore, as train is only called
+        # when memory has content.
+        samples = memory.uniform_random_sample(32)
+
+        # TODO: this probably isn't very efficient...?
+        s, a, r, s_n = zip(*samples)
+        s = np.array(s)
+        a = np.array(a).reshape((32, 1))
+        r = np.array(r).reshape((32, 1))
+        s_n = np.array(s_n)
+        # print "sample={}".format(s)
+        # print "actions={}".format(a)
+        # print "rewards={}".format(r)
+        # print "next_sample={}".format(s_n)
+
+        # self.predict(s)
+        train_batches += 1
+
+        self.states_shared.set_value(s)
+        self.next_states_shared.set_value(s_n)
+        self.actions_shared.set_value(a)
+        self.rewards_shared.set_value(r)
+
+        loss, _ = self.train_fn()
+
+        # reset the 'target network' every target_copy_interval iterations
+        if self.iteration % self.target_copy_interval == 0:
+            params = nom.layers.helpers.get_all_param_values(self.network)
+            nom.layers.helpers.set_all_param_values(self.network_next, params)
+
+        # Then we print the results for this training set
+        print "Training took {}s, loss: {}".format(time.time() - start_time, loss)
+
+        return np.sqrt(loss)
+
+
+    def predict(self, state):
+        # TODO: we want to get the index corresponding to the maximum
+        #       value of the network outputs (ie, argmax_a Q(s, a))
+        #       get_output returns a theano expression that is evaluated
+        #       using eval(). See here:
+        #       https://github.com/Lasagne/Lasagne/issues/475
+
+        states = np.zeros((32, 4, 64, 64), dtype=theano.config.floatX)
+        states[0, ...] = state
+        self.states_shared.set_value(states)
+        output = self.predict_fn()[0]
+        print "output {}".format(output)
+        return np.argmax(output)
 
     def _get_layer_settings(self, layer):
         settings = {
