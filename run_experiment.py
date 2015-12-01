@@ -28,7 +28,9 @@ def main():
                         help=('The name of the experiment you want to run. '
                               'If it is NAME, there should be a file in '
                               'experiments/NAME.py that runs the actual '
-                              'experiment.')
+                              'experiment.'),
+                        default='HELP_ME_I_FORGOT_TO_GIVE_IT_AN_EXPERIMENT',
+                        nargs='?'
                         )
 
     experiment = parser.parse_args().experiment
