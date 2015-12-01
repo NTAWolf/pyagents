@@ -178,7 +178,7 @@ class CNN(NN):
         next_states_t = T.tensor4('next_states')
         reward_t = T.col('rewards')
         action_t = T.icol('actions')
-
+        terminal_t = T.icol('terminals')
 
         self.states_shared = theano.shared(
             np.zeros((batch_size, 1, n_inputs[0], n_inputs[1]),
@@ -196,6 +196,10 @@ class CNN(NN):
             np.zeros((batch_size, 1), dtype='int32'),
             broadcastable=(False, True))
 
+        self.terminals_shared = theano.shared(
+            np.zeros((batch_size, 1), dtype='int32'),
+            broadcastable=(False, True))
+
         
         # Network outputs
         q_vals = nom.layers.get_output(self.network, states_t)
@@ -209,8 +213,8 @@ class CNN(NN):
         #     t = r_t + discount * argmax_a' Q'(s, a')
         # so the target value is a scalar corresponding to just one of the 
         # net work's outputs.
-        target = (reward_t + self.gamma * T.max(next_q_vals, axis=1, keepdims=True))
-        diff = target - q_vals[T.arange(self.batch_size),
+        target = (reward_t + (T.ones_like(terminal_t) - terminal_t) * self.gamma * T.max(next_q_vals, axis=1, keepdims=True))
+        diff = target_t - q_vals[T.arange(self.batch_size),
                                action_t.reshape((-1,))].reshape((-1, 1))
 
         loss = 0.5* diff **2
@@ -327,10 +331,11 @@ class CNN(NN):
         samples = memory.uniform_random_sample(32)
 
         # TODO: this probably isn't very efficient...?
-        s, a, r, s_n = zip(*samples)
+        s, a, r, s_n, t = zip(*samples)
         s = np.array(s)
         a = np.array(a).reshape((32, 1))
         r = np.array(r).reshape((32, 1))
+        t = np.array(t).reshape((32, 1))
         s_n = np.array(s_n)
         # print "sample={}".format(s)
         # print "actions={}".format(a)
@@ -344,6 +349,7 @@ class CNN(NN):
         self.next_states_shared.set_value(s_n)
         self.actions_shared.set_value(a)
         self.rewards_shared.set_value(r)
+        self.terminals_shared.set_value(t)
 
         loss, _ = self.train_fn()
 
