@@ -86,6 +86,7 @@ class DLAgent(Agent):
         self._reset_sars()
 
     def on_episode_end(self):
+        self._sars[4] = 0
         self.flush_experience()
 
     def flush_experience(self):
@@ -93,8 +94,8 @@ class DLAgent(Agent):
         self._reset_sars()
 
     def _reset_sars(self):
-        # state, action, reward, newstate
-        self._sars = [None, None, None, None]
+        # state, action, reward, newstate, newstate_not_terminal
+        self._sars = [None, None, None, None, 1]
 
     def get_settings(self):
         settings =  {
