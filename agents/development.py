@@ -39,11 +39,8 @@ class DevelopmentAgent(Agent):
 
         print "Note that the step-through does not work"
 
-    def select_action(self, state, available_actions):
-        """Returns one of the actions given in available_actions.
-        """
+    def select_action(self, state):
         self.storage['state'] = state
-        self.storage['available_actions'] = available_actions
         # pdb.set_trace()
         print "About to wait for thread_event..."
         # Ipython regains control here
@@ -60,6 +57,7 @@ class DevelopmentAgent(Agent):
 
     def on_episode_start(self):
         print "Agent sees that episode starts"
+        self.storage['available_actions'] = self.available_actions
 
     def on_episode_end(self):
         print "Agent sees that episode ends"

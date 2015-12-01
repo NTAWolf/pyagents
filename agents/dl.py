@@ -46,12 +46,8 @@ class DLAgent(Agent):
         self.action_repeat_manager = RepeatManager(n_frames_per_action - 1)
 
         self._sar = None  # state, action, reward
-        self.cnn = CNN(config='deepmind')
 
-    def select_action(self, state, available_actions):
-        """Returns one of the actions given in available_actions.
-        """
-
+    def select_action(self, state):
         # Repeat last chosen action?
         action = self.action_repeat_manager.next()
         if action != None:
@@ -59,7 +55,6 @@ class DLAgent(Agent):
 
         if self.cnn == None:
             print "Using DummyCNN"
-            self.cnn = DummyCNN(len(available_actions))
 
         s = self.preprocessor.process(state)
 
@@ -72,10 +67,10 @@ class DLAgent(Agent):
             self.cnn.train(self.experience)
 
         if np.random.random() < self.epsilon.next():
-            action = self.get_random_action(available_actions)
+            action = self.get_random_action(self.available_actions)
         else:
             action_index = self.cnn.predict(s)
-            action = available_actions[action_index]
+            action = self.available_actions[action_index]
 
         self.action_repeat_manager.set(action)
 
@@ -83,6 +78,11 @@ class DLAgent(Agent):
         self._sars[1] = action
 
         return action
+
+    def set_available_actions(self, actions):
+        super(DLAgent, self).set_available_actions(actions)
+        self.cnn = CNN(config='deepmind', n_outputs = len(actions))
+        # self.cnn = DummyCNN(len(actions))
 
     def receive_reward(self, reward):
         self._sars[2] = reward

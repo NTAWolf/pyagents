@@ -9,8 +9,8 @@ class UniformRandomAgent(Agent):
         super(UniformRandomAgent, self).__init__(
             name='UniformRandom', version='1')
 
-    def select_action(self, state, available_actions):
-        return self.get_random_action(available_actions)
+    def select_action(self, state):
+        return self.get_random_action()
 
     def receive_reward(self, reward):
         pass

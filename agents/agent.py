@@ -9,16 +9,19 @@ class Agent(object):
         self.name = name
         self.version = version
 
-    def select_action(self, state, available_actions):
-        """Returns one of the actions given in available_actions.
+    def select_action(self, state):
+        """Returns one of the actions set in set_available_actions.
         """
         raise NotImplementedError("Method not implemented")
 
     def receive_reward(self, reward):
         raise NotImplementedError("Method not implemented")
 
-    def get_random_action(self, available_actions):
-        return available_actions[randrange(len(available_actions))]
+    def get_random_action(self):
+        return self.available_actions[randrange(len(self.available_actions))]
+
+    def set_available_actions(self, actions):
+        self.available_actions = actions
 
     def on_episode_start(self):
         """Called on episode start by the GameManager
