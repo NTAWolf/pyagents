@@ -45,8 +45,6 @@ class DLAgent(Agent):
         self.epsilon = LinearInterpolationManager([(0, 1.0), (1e4, 0.1)])
         self.action_repeat_manager = RepeatManager(n_frames_per_action - 1)
 
-        self._sar = None  # state, action, reward
-
     def select_action(self, state):
         # Repeat last chosen action?
         action = self.action_repeat_manager.next()
@@ -72,7 +70,7 @@ class DLAgent(Agent):
         self.action_repeat_manager.set(action)
 
         self._sars[0] = s
-        self._sars[1] = action
+        self._sars[1] = np.where(self.available_actions == action)[0][0]
 
         return action
 

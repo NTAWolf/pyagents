@@ -1,4 +1,5 @@
 from random import randrange
+import numpy as np
 
 
 class Agent(object):
@@ -21,7 +22,7 @@ class Agent(object):
         return self.available_actions[randrange(len(self.available_actions))]
 
     def set_available_actions(self, actions):
-        self.available_actions = actions
+        self.available_actions = actions.view(np.uint8)
 
     def on_episode_start(self):
         """Called on episode start by the GameManager
