@@ -94,9 +94,9 @@ class DLAgent(Agent):
                        # network_type='simple',
                        # update_rule='sgd', 
                        # batch_accumulator='sum', 
-                       rng=np.random.RandomState())
+                       #rng=np.random.RandomState())
         # self.cnn = CNN(config='deepmind', n_outputs = len(actions))
-        # self.cnn = DummyCNN(len(actions))
+        self.cnn = DummyCNN(len(actions))
 
     def receive_reward(self, reward):
         self._sars[2] = reward
