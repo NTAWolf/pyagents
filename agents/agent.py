@@ -24,15 +24,18 @@ class Agent(object):
     def set_available_actions(self, actions):
         self.available_actions = list(actions)
 
+    def set_raw_state_callbacks(self, state_functions):
+        pass
+
     def on_episode_start(self):
         """Called on episode start by the GameManager
         """
-        raise NotImplementedError("Method not implemented")
+        pass
 
     def on_episode_end(self):
         """Called on episode end by the GameManager
         """
-        raise NotImplementedError("Method not implemented")
+        pass
 
     def get_settings(self):
         """Called by the GameManager when it is

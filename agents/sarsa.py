@@ -7,7 +7,7 @@ from util.pongcess import RelativeBall, StateIndex
 
 class SarsaAgent(Agent):
     """
-    Agent a SARAS(lambda) approach
+    Agent a SARSA(lambda) approach
     Input RGB image is preprocessed, resulting in states
     - (x, y) ball
     - y player
@@ -133,9 +133,6 @@ class SarsaAgent(Agent):
 
     def receive_reward(self, reward):
         self.r_ = reward
-
-    def on_episode_start(self):
-        pass
 
     def on_episode_end(self):
         self.flush_experience()
