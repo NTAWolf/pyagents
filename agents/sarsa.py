@@ -18,15 +18,13 @@ class SarsaAgent(Agent):
                  learning_rate=0.001,
                  discount=0.99, 
                  lambda_v=0.5):
-        super(DLAgent, self).__init__(name='DL', version='1')
+        super(SarsaAgent, self).__init__(name='Sarsa', version='1')
         self.experience = CircularList(1000)
         self.n_frames_per_action = n_frames_per_action
 
         self.epsilon = LinearInterpolationManager([(0, 1.0), (1e4, 0.1)])
         self.action_repeat_manager = RepeatManager(n_frames_per_action - 1)
         
-        self.preprocessor = StateIndex(RelativeBall(self.raw_state))
-
         self.trace_type = trace_type
         self.learning_rate = learning_rate
         self.lambda_v = lambda_v
@@ -70,7 +68,7 @@ class SarsaAgent(Agent):
 
         a_ = self.e_greedy(s_)
         self.action_repeat_manager.set(a_)
-
+        r = self.r_
         print "running SARSA with {}".format([s, a, r, s_, a_])
 
         """
@@ -105,10 +103,13 @@ class SarsaAgent(Agent):
         return a_
 
     def e_greedy(self, sid):
+        """Returns action index
+        """
         # decide on next action a'
         # E-greedy strategy
         if np.random.random() < self.epsilon.next(): 
             action = self.get_random_action()
+            action = np.argmax(self.available_actions == action)
             print "cheeky pint? action {}".format(action)
         else:
             # get the best action given the current state
@@ -117,32 +118,41 @@ class SarsaAgent(Agent):
         return action
 
     def set_available_actions(self, actions):
+        super(SarsaAgent, self).set_available_actions(actions)
         # possible state values 
+        print 'type(actions)',type(actions)
         state_n = len(self.preprocessor.enumerate_states())
 
-        self.q_vals = np.random.rand((state_n, len(actions)))
+        # print 'state_n',state_n
+        # print 'actions',actions
+        self.q_vals = np.zeros((state_n, len(actions)))
         self.e_vals = np.zeros((state_n, len(actions)))
 
+    def set_raw_state_callbacks(self, state_functions):
+        self.preprocessor = StateIndex(RelativeBall(state_functions))
+
     def receive_reward(self, reward):
-        self.r = reward
+        self.r_ = reward
+
+    def on_episode_start(self):
+        pass
 
     def on_episode_end(self):
         self.flush_experience()
 
     def flush_experience(self):
-        self.experience.append(tuple(self._sars))
+        pass
+        # self.experience.append(tuple(self._sars))
 
     def get_settings(self):
         settings =  {
             "name": self.name,
             "version": self.version,
-            "n_frames_per_action": self.n_frames_per_action,
-            "experience_replay": self.experience.capacity(),
-            "preprocessor": self.preprocessor.get_settings(),
-            "epsilon": self.epsilon.get_settings(),
-            "cnn": self.cnn.get_settings(),
+            # "n_frames_per_action": self.n_frames_per_action,
+            # "experience_replay": self.experience.capacity(),
+            # "preprocessor": self.preprocessor.get_settings(),
         }
 
-        settings.update(super(DLAgent, self).get_settings())
+        settings.update(super(SarsaAgent, self).get_settings())
 
         return settings

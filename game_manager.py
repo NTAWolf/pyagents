@@ -99,6 +99,12 @@ class GameManager(object):
         self.log.settings("n_episodes {}".format(str(n_episodes)))
         self.log.settings("n_frames {}".format(str(n_frames)))
 
+        SF = namedtuple('StateFunctions', ['raw', 'grey', 'rgb', 'ram'])
+        self.state_functions = SF(
+            self.get_screen, self.get_screen_grayscale, self.get_screen_RGB, self.get_RAM)
+        
+        self.agent.set_raw_state_callbacks(self.state_functions)
+
         self.ale = ALEInterface()
         self.ale.loadROM(os.path.join(ROM_RELATIVE_LOCATION, self.game_name))
         if self.use_minimal_action_set:
@@ -108,9 +114,7 @@ class GameManager(object):
 
         self.agent.set_available_actions(actions)
 
-        SF = namedtuple('StateFunctions', ['raw', 'grey', 'rgb', 'ram'])
-        self.state_functions = SF(
-            self.get_screen, self.get_screen_grayscale, self.get_screen_RGB, self.get_RAM)
+        
         self.episodes_passed = 0
 
         self.initialize_visualiser()
@@ -151,7 +155,7 @@ class GameManager(object):
 
         self.agent.on_episode_start()
         while (not self.ale.game_over()) and (not self._stop_condition_met()):
-            action = self.agent.select_action(self.state_functions)
+            action = self.agent.select_action()
             reward = self.ale.act(action)
             self.agent.receive_reward(reward)
             total_reward += reward

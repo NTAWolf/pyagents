@@ -10,7 +10,7 @@ class Agent(object):
         self.name = name
         self.version = version
 
-    def select_action(self, state):
+    def select_action(self):
         """Returns one of the actions set in set_available_actions.
         """
         raise NotImplementedError("Method not implemented")
