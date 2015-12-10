@@ -7,6 +7,7 @@ all games and agents supported by ALE.
 from collections import namedtuple
 from datetime import datetime
 import os
+from time import time, sleep
 from threading import Thread
 import shutil
 import util.logging
@@ -24,14 +25,16 @@ class GameManager(object):
     """
 
     def __init__(self, game_name, agent, results_dir,
-                 remove_old_results_dir=False, use_minimal_action_set=True, 
-                 visualise=None):
+                 remove_old_results_dir=False, use_minimal_action_set=True,
+                 min_time_between_frames=1./60, visualise=None):
         """game_name is one of the supported games (there are many), as a string: "space_invaders.bin"
         agent is an an instance of a subclass of the Agent interface
         results_dir is a string representing a directory in which results and logs are placed
             If it does not exist, it is created.
         use_minimal_action_set determines whether the agent is offered all possible actions,
             or only those (minimal) that are applicable to the specific game.
+        min_time_between_frames is the minimum required time in seconds between
+            frames. If 0, the game is unrestricted.
         visualise is None for no visualization (default), or one of 'raw', 'ram', 'grey', 'rgb',
             or a method that takes as an argument the GameManager's list of methods (its 
             state_functions) and returns a new method that returns an np.array for Visualiser.
@@ -40,7 +43,9 @@ class GameManager(object):
         self.game_name = game_name
         self.agent = agent
         self.use_minimal_action_set = use_minimal_action_set
+        self.min_time_between_frames = min_time_between_frames
         self.visualise = visualise
+        self.kill = False # Flag set to true when visuals are closed down
 
         now = datetime.now().strftime('%Y%m%d-%H-%M')
         # drop .bin, append current time down to the minute
@@ -130,6 +135,10 @@ class GameManager(object):
             t = Thread(target=self._run)
             t.start()
             self.visualiser.run()
+            # Visualizer stopped, so we continue here
+            # by killing the gamemanager thread
+            self.kill = True
+
             # self.visualiser.on_draw(None)
         else:
             self._run()
@@ -154,12 +163,22 @@ class GameManager(object):
         nframes = 0
 
         self.agent.on_episode_start()
+
         while (not self.ale.game_over()) and (not self._stop_condition_met()):
+            time_start = time()
             action = self.agent.select_action()
             reward = self.ale.act(action)
             self.agent.receive_reward(reward)
             total_reward += reward
             nframes += 1
+
+            rest_time = self.min_time_between_frames - (time() - time_start)
+            if rest_time > 0:
+                sleep(rest_time)
+            if self.kill:
+                print "Process killed"
+                import sys
+                sys.exit()
         self.agent.on_episode_end()
 
         duration = (datetime.now() - start).total_seconds()
