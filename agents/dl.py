@@ -4,6 +4,7 @@ from . import Agent
 from util.collections import CircularList
 from util.managers import RepeatManager, LinearInterpolationManager
 from util.nn import Preprocessor, DummyCNN, CNN
+#from util.nn_dq import DeepQLearner as CNN
 
 
 class DLAgent(Agent):
@@ -61,11 +62,13 @@ class DLAgent(Agent):
         if len(self.experience) > 0:
             self.cnn.train(self.experience)
 
-        if np.random.random() < self.epsilon.next():
+        if np.random.random() < self.epsilon.next() or len(s) < 4: 
             action = self.get_random_action()
+            print "random action {}".format(action)
         else:
             action_index = self.cnn.predict(s)
             action = self.available_actions[action_index]
+            print "cnn action {}".format(action)
 
         self.action_repeat_manager.set(action)
 
@@ -76,7 +79,23 @@ class DLAgent(Agent):
 
     def set_available_actions(self, actions):
         super(DLAgent, self).set_available_actions(actions)
-        self.cnn = CNN(config='deepmind', n_outputs = len(actions))
+        #self.cnn = CNN(input_width=64, 
+        #               input_height=64, 
+                       # num_actions=len(actions), 
+                       # num_frames=4,
+                       # discount=.99, 
+                       # learning_rate=.000001, 
+                       # rho=.95, 
+                       # rms_epsilon=1.0, 
+                       # momentum=0,
+                       # clip_delta=0,
+                       # freeze_interval=10000, 
+                       # batch_size=32, 
+                       # network_type='simple',
+                       # update_rule='sgd', 
+                       # batch_accumulator='sum', 
+                       rng=np.random.RandomState())
+        # self.cnn = CNN(config='deepmind', n_outputs = len(actions))
         # self.cnn = DummyCNN(len(actions))
 
     def receive_reward(self, reward):

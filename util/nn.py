@@ -139,9 +139,9 @@ class CNN(NN):
     Convolutional Neural Networks! Yay
     """
     def __init__(
-            self, n_inputs=(64, 64), n_outputs=12, n_channels=4, 
+            self, n_inputs=(64, 64), n_outputs=12, n_frames=4, 
             config='deepmind', gamma=0.99, target_copy_interval=10,
-            batch_size=32):
+            batch_size=1):
         super(CNN, self).__init__(name='CNN', version='1')
 
         self.gamma = gamma
@@ -154,7 +154,7 @@ class CNN(NN):
         }
 
         try:
-            self.network = configurations[config](n_inputs, n_outputs, n_channels)
+            self.network = configurations[config](n_inputs, n_outputs, n_frames)
         except KeyError:
             print "Invalid network configuration, choose one of {}".format(self.configurations.keys())
             raise
@@ -181,11 +181,11 @@ class CNN(NN):
         terminal_t = T.icol('terminals')
 
         self.states_shared = theano.shared(
-            np.zeros((batch_size, 1, n_inputs[0], n_inputs[1]),
+            np.zeros((batch_size, 4, n_inputs[0], n_inputs[1]),
                      dtype=theano.config.floatX))
 
         self.next_states_shared = theano.shared(
-            np.zeros((batch_size, 1, n_inputs[0], n_inputs[1]),
+            np.zeros((batch_size, 4, n_inputs[0], n_inputs[1]),
                      dtype=theano.config.floatX))
 
         self.rewards_shared = theano.shared(
@@ -213,19 +213,21 @@ class CNN(NN):
         #     t = r_t + discount * argmax_a' Q'(s, a')
         # so the target value is a scalar corresponding to just one of the 
         # net work's outputs.
-        target = (reward_t + (T.ones_like(terminal_t) - terminal_t) * self.gamma * T.max(next_q_vals, axis=1, keepdims=True))
+        target = (reward_t + terminal_t * self.gamma * T.max(next_q_vals, axis=1, keepdims=True))
         diff = target - q_vals[T.arange(self.batch_size),
                                action_t.reshape((-1,))].reshape((-1, 1))
 
-        loss = 0.5* diff **2
-        loss = loss.mean()
+        # loss = 0.5* T.clip(diff, -1, 1) **2
+        loss = 0.5 * diff ** 2
+        loss = T.mean(loss)
 
         # Create update expressions for training, i.e., how to modify the
         # parameters at each training step. Here, we'll use Stochastic Gradient
         # Descent (SGD) with Nesterov momentum, but Nom offers plenty more.
         params = nom.layers.get_all_params(self.network, trainable=True)
-        updates = nom.updates.nesterov_momentum(
-            loss, params, learning_rate=0.01, momentum=0.9)
+        updates = nom.updates.sgd(loss,params, 0.000001)
+        #updates = nom.updates.nesterov_momentum(
+        #    loss, params, learning_rate=0.01, momentum=0.9)
 
         givens = {
             states_t: self.states_shared,
@@ -249,7 +251,7 @@ class CNN(NN):
         self.p_network = self.network
 
 
-    def _build_deepmind(self, n_inputs, n_output, n_channels):
+    def _build_deepmind(self, n_inputs, n_output, n_frames):
         """
         Builds the CNN used in the Google deepmind Atari paper (doi:10.1038)
 
@@ -283,7 +285,7 @@ class CNN(NN):
         #      parameter 'inputs' and the inputs to the network
         # input layer with (unknown_batch_size, n_channels, n_rows, n_columns)
         l_in = nom.layers.InputLayer(
-            shape=(None, n_channels, n_inputs[0], n_inputs[1]))
+            shape=(None, n_frames, n_inputs[0], n_inputs[1]))
 
         # first hidden layer
         l_h1 = nom.layers.Conv2DLayer(
@@ -329,19 +331,19 @@ class CNN(NN):
         # sample random minibatch from memory
         # Should not raise ValueError anymore, as train is only called
         # when memory has content.
-        samples = memory.uniform_random_sample(32)
+        samples = memory.uniform_random_sample(self.batch_size)
 
         # TODO: this probably isn't very efficient...?
         s, a, r, s_n, t = zip(*samples)
         s = np.array(s)
-        a = np.array(a, dtype=np.int32).reshape((32, 1))
-        r = np.array(r).reshape((32, 1))
-        t = np.array(t, dtype=np.int32).reshape((32, 1))
+        a = np.array(a, dtype=np.int32).reshape((self.batch_size, 1))
+        r = np.array(r).reshape((self.batch_size, 1))
+        t = np.array(t, dtype=np.int32).reshape((self.batch_size, 1))
         s_n = np.array(s_n)
-        # print "sample={}".format(s)
-        # print "actions={}".format(a)
-        # print "rewards={}".format(r)
-        # print "next_sample={}".format(s_n)
+        #print "sample={}".format(s)
+        #print "actions={}".format(a)
+        #print "rewards={}".format(r)
+        #print "next_sample={}".format(s_n)
 
         # self.predict(s)
         train_batches += 1
@@ -355,29 +357,33 @@ class CNN(NN):
         loss, _ = self.train_fn()
 
         # reset the 'target network' every target_copy_interval iterations
-        if self.iteration % self.target_copy_interval == 0:
-            params = nom.layers.get_all_param_values(self.network)
-            nom.layers.set_all_param_values(self.network_next, params)
+        #if self.iteration % self.target_copy_interval == 0:
+        #    
+        #    params = nom.layers.get_all_param_values(self.network)
+        #    nom.layers.set_all_param_values(self.network_next, params)
 
         # Then we print the results for this training set
-        print "Training took {}s, loss: {}".format(time.time() - start_time, loss)
+        print "training loss: {}".format(time.time() - start_time, loss)
 
         return np.sqrt(loss)
 
 
-    def predict(self, state):
+    def q_vals(self, state):
         # TODO: we want to get the index corresponding to the maximum
         #       value of the network outputs (ie, argmax_a Q(s, a))
         #       get_output returns a theano expression that is evaluated
         #       using eval(). See here:
         #       https://github.com/Lasagne/Lasagne/issues/475
-
-        states = np.zeros((32, 4, 64, 64), dtype=theano.config.floatX)
+        states = np.zeros((self.batch_size, 4, 64, 64), dtype=theano.config.floatX)
         states[0, ...] = state
         self.states_shared.set_value(states)
-        output = self.predict_fn()[0]
-        print "output {}".format(output)
-        return np.argmax(output)
+        return self.predict_fn()[0]
+
+    def predict(self, state, epsilon=0.0):
+        #if self.rng.rand() < epsilon:
+        #    return self.rng.randint(0, self.num_actions)
+        q_vals = self.q_vals(state)
+        return np.argmax(q_vals)
 
     def _get_layer_settings(self, layer):
         settings = {
