@@ -21,11 +21,20 @@ Y_RANGE = np.arange(0, PLAY_AREA_BOTTOM - PLAY_AREA_TOP)
 
 class Feature(object):
 
+    def __init__(self, name):
+        self.name = name
+
     def process(self):
         raise NotImplementedError()
 
     def enumerate_states(self):
         raise NotImplementedError()
+
+    def get_settings(self):
+        """
+        Returns a dict
+        """
+        return {"name":self.name}
 
 class StateIndex(Feature):
     """Usage:
@@ -33,6 +42,7 @@ class StateIndex(Feature):
     s.process(state)
     """
     def __init__(self, feature):
+        super(StateIndex, self).__init__('StateIndex')
         self.f = feature
         states = feature.enumerate_states()
         self.state2index = dict([(s,i) for i,s in enumerate(states)])
@@ -44,6 +54,11 @@ class StateIndex(Feature):
     def enumerate_states(self):
         return list(self.state2index.iterkeys())
 
+    def get_settings(self):
+        s = super(StateIndex, self).get_settings()
+        s.update({'f':self.f.get_settings()})
+        return s
+
 
 class BallIntercept(Feature):
     """Based on the ball's position last time process was called,
@@ -51,6 +66,7 @@ class BallIntercept(Feature):
     agent's paddle space.
     """
     def __init__(self, raw_state_callbacks):
+        super(BallIntercept, self).__init__('BallIntercept')
         self.pos = Positions(raw_state_callbacks)
         self.play_area_size = np.array([AGENT_X - OPPONENT_X,
                                         PLAY_AREA_BOTTOM - PLAY_AREA_TOP],
@@ -119,22 +135,47 @@ class BallIntercept(Feature):
         intercept = pos + a*vel
         return intercept, reflected_vel, self.TOP
 
+    def get_settings(self):
+        return super(BallIntercept, self).get_settings()
+
 
 class RelativeBall(Feature):
-    def __init__(self, raw_state_callbacks):
+    def __init__(self, raw_state_callbacks, trinary=False):
+        """if trinary is True, returns -1 if the ball is below the agent,
+        0 if the ball is on level with the agent, and 1 if the ball is above
+        the agent. I.e. reduces to three states.
+        """
+        super(RelativeBall, self).__init__('RelativeBall')
         self.pos = Positions(raw_state_callbacks)
+        self.trinary = trinary
 
     def process(self):
         self.pos.update()
-        return self.pos.ball[1] - self.pos.agent
+        rel_pos = self.pos.ball[1] - self.pos.agent
+        if self.trinary:
+            if rel_pos < 0:
+                return -1
+            if rel_pos > 0:
+                return 1
+        return rel_pos
 
     def enumerate_states(self):
+        if self.trinary:
+            return (-1,0,1)
         return list(set([b-p for p in Y_RANGE for b in Y_RANGE]))
 
+    def get_settings(self):
+        s = super(RelativeBall, self).get_settings()
+        s.update({'trinary':self.trinary})
+        return s
 
-class Positions(object):
+
+
+
+class Positions(Feature):
 
     def __init__(self, raw_state_callbacks):
+        super(Positions, self).__init__('Positions')
         self.ball = (0,0)
         self.agent = 0 # Agent y position
         self.opponent = 0 # Opponent y position
@@ -193,4 +234,5 @@ class Positions(object):
         # ball's possible x positions, ball's possible y positions
         return list(product(Y_RANGE, Y_RANGE, X_RANGE, Y_RANGE))
 
-
+    def get_settings(self):
+        return super(Positions, self).get_settings()

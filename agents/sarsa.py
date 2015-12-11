@@ -145,11 +145,11 @@ class SarsaAgent(Agent):
         settings =  {
             "name": self.name,
             "version": self.version,
+            "preprocessor": self.preprocessor.get_settings(),
             # "n_frames_per_action": self.n_frames_per_action,
             # "experience_replay": self.experience.capacity(),
-            # "preprocessor": self.preprocessor.get_settings(),
         }
 
         settings.update(super(SarsaAgent, self).get_settings())
-
+        
         return settings
