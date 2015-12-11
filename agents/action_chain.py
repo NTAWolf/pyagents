@@ -26,7 +26,7 @@ class ActionChainAgent(Agent):
     def update_e(self):
         self.e = linear_latch(self.nframes, *self.e_params)
 
-    def select_action(self, state):
+    def select_action(self):
         # Always take random action first
         action = self.get_random_action()
 

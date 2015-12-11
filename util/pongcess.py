@@ -3,6 +3,16 @@
 
 import numpy as np
 
+import matplotlib.pyplot as plt
+import os
+
+def save_image(data, file_path):
+    path = os.path.join('fig', file_path)
+    aximg = plt.imshow(data)
+    plt.savefig(path)
+    print "Saved figure in {}".format(path)
+
+
 BALL_COLOR = 14
 
 BACKGROUND_COLOR = 34
@@ -169,9 +179,6 @@ class RelativeBall(Feature):
         s.update({'trinary':self.trinary})
         return s
 
-
-
-
 class Positions(Feature):
 
     def __init__(self, raw_state_callbacks):
@@ -186,35 +193,33 @@ class Positions(Feature):
         frame is a numpy array with the raw colours from a frame
         """
         frame = self.f().reshape((210,160))
-        frame = frame[PLAY_AREA_TOP:PLAY_AREA_BOTTOM]
+        frame = frame[PLAY_AREA_TOP:PLAY_AREA_BOTTOM]    
+
         self._update_agent(frame)
         self._update_opponent(frame)
         self._update_ball(frame)
 
     def _update_agent(self, frame):
-        try:
-            self.agent = self.get_mean_pos_1d(frame[:,AGENT_X], AGENT_COLOR)
-        except ValueError:
-            # Object not drawn in frame. Reuse last value.
-            pass
+        res = self.get_mean_pos_1d(frame[:,AGENT_X], AGENT_COLOR)
+        if res is not None:
+            self.agent = res
 
     def _update_opponent(self, frame):
-        try:
-            self.opponent = self.get_mean_pos_1d(frame[:,OPPONENT_X], OPPONENT_COLOR)
-        except ValueError:
-            # Object not drawn in frame. Reuse last value.
-            pass
+        res = self.get_mean_pos_1d(frame[:,OPPONENT_X], OPPONENT_COLOR)
+        if res is not None:
+            self.opponent = res
 
     def _update_ball(self, frame):
         hori = np.sum(frame == BALL_COLOR, axis=0)
         vert = np.sum(frame == BALL_COLOR, axis=1)
-        try:
-            x = self.get_mean_pos_1d(hori)
-            y = self.get_mean_pos_1d(vert)
-            self.ball = (x,y)
-        except ValueError:
-            # Object not drawn in frame. Reuse last value.
-            pass
+        # try:
+        x = self.get_mean_pos_1d(hori)
+        y = self.get_mean_pos_1d(vert)
+        if x is None:
+            x = self.ball[0]
+        if y is None:
+            y = self.ball[1]
+        self.ball = (x,y)
 
     def get_mean_pos_1d(self, array, value=None):
         idx = np.arange(len(array), dtype=np.uint8)
@@ -223,6 +228,8 @@ class Positions(Feature):
         else:
             # Assume array is a sum on an axis
             indices = idx[array > 0]
+        if len(indices) == 0:
+            return None
         return int(np.average(indices))
 
     def enumerate_states(self):

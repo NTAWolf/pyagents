@@ -132,7 +132,7 @@ class SarsaAgent(Agent):
         self.e_vals = np.zeros((state_n, len(actions)))
 
     def set_raw_state_callbacks(self, state_functions):
-        self.preprocessor = StateIndex(RelativeBall(state_functions))
+        self.preprocessor = StateIndex(RelativeBall(state_functions, trinary=True))
 
     def receive_reward(self, reward):
         # TODO: receive_rewards() called too frequently! self.r_ is changed
@@ -150,6 +150,10 @@ class SarsaAgent(Agent):
             print "======================================================"
             print "======================================================"
             print "======================================================"
+            sleep(2)
+
+    def on_episode_start(self):
+        print "Agent episode start"
 
     def on_episode_end(self):
         self.flush_experience()
