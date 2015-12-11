@@ -91,14 +91,17 @@ class SarsaAgent(Agent):
             
         # TODO: currently Q(s, a) is updated for all a, not a in A(s)!
         self.q_vals += self.learning_rate * d * self.e_vals
+        #print "  q   : lr '{}', d '{}', e_vals mean {}".format(self.learning_rate, d, self.e_vals.mean())
+        print "  q(s): {}".format(', '.join(['{:.2} '.format(q) for q in self.q_vals[s,:]]))
         self.e_vals *= (self.discount * self.lambda_v)
-        
-        print "  q(s) {}".format(self.q_vals[s,:])
-        print "  e(s) {}".format(self.e_vals[s,:])
+        #print "  e   : discount: '{}', l: '{}'".format(self.discount, self.lambda_v)
+        #print "  e(s):{}".format(self.e_vals[s,:])
 
         # save current state, action for next iteration
         self.s_ = s_
         self.a_ = a_
+
+        self.r_ = 0
 
         return a_
 
@@ -110,11 +113,11 @@ class SarsaAgent(Agent):
         if np.random.random() < self.epsilon.next(): 
             action = self.get_random_action()
             action = np.argmax(self.available_actions == action)
-            print "cheeky pint? action {}".format(action)
+            # print "random {}".format(action)
         else:
             # get the best action given the current state
             action = np.argmax(self.q_vals[sid, :])
-            print "greedy bastard {}".format(action)
+            # print "greedy {}".format(action)
         return action
 
     def set_available_actions(self, actions):
@@ -132,7 +135,21 @@ class SarsaAgent(Agent):
         self.preprocessor = StateIndex(RelativeBall(state_functions))
 
     def receive_reward(self, reward):
-        self.r_ = reward
+        # TODO: receive_rewards() called too frequently! self.r_ is changed
+        #       before select_action completes!
+        self.r_ += reward
+        if reward > 0:
+            print "======================================================"
+            print "======================================================"
+            print "======================================================"
+            print "======================================================"
+            print "====HE SHOOOTS - HE SCORES ==========================="
+            print "======================================================"
+            print "====GOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOAAAAAAAAAAALLL===="
+            print "======================================================"
+            print "======================================================"
+            print "======================================================"
+            print "======================================================"
 
     def on_episode_end(self):
         self.flush_experience()
