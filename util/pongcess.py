@@ -29,6 +29,7 @@ PLAY_AREA_BOTTOM = 194
 X_RANGE = np.arange(160)
 Y_RANGE = np.arange(0, PLAY_AREA_BOTTOM - PLAY_AREA_TOP)
 
+
 class Feature(object):
 
     def __init__(self, name):
@@ -45,6 +46,14 @@ class Feature(object):
         Returns a dict
         """
         return {"name":self.name}
+
+def extract_game_area(frame):
+    if frame.ndim == 1:
+        frame = frame.reshape((210,160))
+        return frame[PLAY_AREA_TOP:PLAY_AREA_BOTTOM]
+    elif frame.ndim == 3:
+        print "RGB frame extract_game_area not tested!"
+        return frame[:,PLAY_AREA_TOP:PLAY_AREA_BOTTOM,:]
 
 class StateIndex(Feature):
     """Usage:
@@ -70,83 +79,91 @@ class StateIndex(Feature):
         return s
 
 
-class BallIntercept(Feature):
-    """Based on the ball's position last time process was called,
-    this class predicts where the ball will intercept with the 
-    agent's paddle space.
+
+
+
+class RelativeIntercept(Feature):
+    """Returns 1 if ball is expected above,
+    -1 if ball is expected below, and 0 if it
+    is unknown.
     """
+
     def __init__(self, raw_state_callbacks):
-        super(BallIntercept, self).__init__('BallIntercept')
+        super(RelativeIntercept, self).__init__("RelativeIntercept")
         self.pos = Positions(raw_state_callbacks)
-        self.play_area_size = np.array([AGENT_X - OPPONENT_X,
-                                        PLAY_AREA_BOTTOM - PLAY_AREA_TOP],
-                                        dtype=np.float32)
-        self.last_ball = self.play_area_size / 2
+        self.last_valid_v = None
+        self.last_valid_p = None
+
+        # For debugging
+        self.intercept = (5,5)
+        self.p1 = -1
+        self.ag = -1
+
         self.LEFT = 0
         self.TOP = 1
         self.RIGHT = 2
         self.BOTTOM = 3
 
-    def process(self):
-        """Returns an integer
-        """
-        self.pos.update()
-        ball = np.array(self.pos.ball, dtype=np.float32)
 
-        vel = ball - self.last_ball
-        self.last_ball = ball.copy()
-        
+    def process(self):
+        self.pos.update()
+        p = self.pos.ball
+
+        if p is None:
+            return 0
+
+        if self.last_valid_p is None:
+            self.last_valid_p = p
+            return 0
+
+        v = p - self.last_valid_p
+        self.last_valid_p = p
+
+        # Is v corrupt?
+        if np.linalg.norm(v[0]) < 1e-1:
+            if self.last_valid_v is None:
+                return 0
+            v = self.last_valid_v
+        else:
+            self.last_valid_v = v
+
+        # Here, we are guaranteed that p and v will work
         edge = -1
         while edge != self.RIGHT:
-            ball, vel, edge = self.next_intercept(ball, vel)
+            p, v, edge = self.next_intercept(p, v)
 
-        return int(ball[1])
+        # For debugging
+        self.intercept = p + (0, PLAY_AREA_TOP)
+        self.p1 = p[1]
+        self.ag = self.pos.agent
 
-    def next_intercept(self, pos, vel):
-        """Returns edge intercept point and reflected velocity
-        around edge normal, as well as intercept edge constant
-        """
-        reflected_vel = vel * (-1, 1)
-        # Moving left?
-        if vel[0] < 0:
-            # a is the multiplier on vel to achieve left side intercept
-            a = (OPPONENT_X - pos[0])/vel[0]
-            intercept = pos + a*vel
-            # Do we hit the left edge?
-            if PLAY_AREA_TOP <= intercept[1] <= PLAY_AREA_BOTTOM:
-                return intercept, reflected_vel, self.LEFT
-            return self.top_bottom_intercept(pos, vel)
+        # Return relative intercept, clipped to 1,0,-1
+        if p[1] < self.pos.agent:
+            return 1
+        return -1
+        # return int(np.clip(diff, -1, 1))
 
-        # Otherwise, moving right
-        a = (AGENT_X - pos[0])/vel[0]
-        intercept = pos + a*vel
-        # Do we hit the right edge?
-        if PLAY_AREA_TOP <= intercept[1] <= PLAY_AREA_BOTTOM:
-            return intercept, reflected_vel, self.RIGHT
-        return self.top_bottom_intercept(pos, vel)
+    def next_intercept(self, p, v):
+        if v[0] < 0:
+            return self.intercept_vertical(p, v, OPPONENT_X, self.LEFT)
+        return self.intercept_vertical(p, v, AGENT_X, self.RIGHT)
 
-    def top_bottom_intercept(self, pos, vel):
-        """Returns the next intercept with a top layer.
-        Only used when you most definitely know you'll not
-        hit a side edge.
+    def intercept_vertical(self, p, v, x_val, edge):
+        # p + a*v = x_val
+        # a = (x_val - p) / v
+        a = (x_val - p[0]) / v[0]
+        i = p + a*v
+        if i[1] < 0:
+            return self.intercept_horizontal(p, v, 0, self.TOP)
+        elif i[1] > 160:
+            return self.intercept_horizontal(p, v, 160, self.BOTTOM)
+        return i, (-1,1)*v, edge
 
-        Returns edge intercept point, reflected velocity
-        around edge normal, and edge constant
-        """
-        reflected_vel = vel * (1, -1)
-        # Moving down? (y-axis is inverted)
-        if vel[1] > 0:
-            # a is the multiplier on vel to achieve bottom edge intercept
-            a = (PLAY_AREA_BOTTOM - pos[1])/vel[1]
-            intercept = pos + a*vel
-            return intercept, reflected_vel, self.BOTTOM
-        # a is the multiplier on vel to achieve top edge intercept
-        a = (PLAY_AREA_TOP - pos[1])/vel[1]
-        intercept = pos + a*vel
-        return intercept, reflected_vel, self.TOP
+    def intercept_horizontal(self, p, v, y_val, edge):
+        a = (y_val - p[1]) / v[1]
+        p = p + a*v
+        return p, (1,-1)*v, edge
 
-    def get_settings(self):
-        return super(BallIntercept, self).get_settings()
 
 
 class RelativeBall(Feature):
@@ -161,6 +178,9 @@ class RelativeBall(Feature):
 
     def process(self):
         self.pos.update()
+
+        if self.pos.ball[1] is None or self.pos.agent is None:
+            return 0
         rel_pos = self.pos.ball[1] - self.pos.agent
         if self.trinary:
             if rel_pos < 0:
@@ -179,21 +199,26 @@ class RelativeBall(Feature):
         s.update({'trinary':self.trinary})
         return s
 
+
 class Positions(Feature):
+    """always stores the last valid positions
+    If nothing has been seen yet, stores None
+    """
 
     def __init__(self, raw_state_callbacks):
         super(Positions, self).__init__('Positions')
-        self.ball = (0,0)
-        self.agent = 0 # Agent y position
-        self.opponent = 0 # Opponent y position
+        self.ball = None
+        self.agent = None # Agent y position
+        self.opponent = None # Opponent y position
         self.f = raw_state_callbacks.raw
 
     def update(self):
         """Updates the position estimates
         frame is a numpy array with the raw colours from a frame
         """
-        frame = self.f().reshape((210,160))
-        frame = frame[PLAY_AREA_TOP:PLAY_AREA_BOTTOM]    
+        frame = extract_game_area(self.f())
+        # frame = self.f().reshape((210,160))
+        # frame = frame[PLAY_AREA_TOP:PLAY_AREA_BOTTOM]
 
         self._update_agent(frame)
         self._update_opponent(frame)
@@ -212,17 +237,17 @@ class Positions(Feature):
     def _update_ball(self, frame):
         hori = np.sum(frame == BALL_COLOR, axis=0)
         vert = np.sum(frame == BALL_COLOR, axis=1)
-        # try:
+
         x = self.get_mean_pos_1d(hori)
         y = self.get_mean_pos_1d(vert)
-        if x is None:
-            x = self.ball[0]
-        if y is None:
-            y = self.ball[1]
-        self.ball = (x,y)
+
+        if x is None or y is None:
+            return
+
+        self.ball = np.array((x,y))
 
     def get_mean_pos_1d(self, array, value=None):
-        idx = np.arange(len(array), dtype=np.uint8)
+        idx = np.arange(len(array), dtype=np.float32)
         if value is not None:
             indices = idx[array == value]
         else:
@@ -230,7 +255,7 @@ class Positions(Feature):
             indices = idx[array > 0]
         if len(indices) == 0:
             return None
-        return int(np.average(indices))
+        return np.average(indices)
 
     def enumerate_states(self):
         """Returns a list of all the possible states

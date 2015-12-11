@@ -170,6 +170,8 @@ class GameManager(object):
             reward = self.ale.act(action)
             self.agent.receive_reward(reward)
             total_reward += reward
+            if reward != 0:
+                print "frame, reward", nframes, reward
             nframes += 1
 
             rest_time = self.min_time_between_frames - (time() - time_start)
