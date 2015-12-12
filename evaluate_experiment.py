@@ -11,6 +11,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn # Makes plots look prettier
 
+import experiments
+
 def evaluate(results_dir):
     print("Evaluating experiment from directory {}".format(results_dir))
 
@@ -47,11 +49,14 @@ def evaluate(results_dir):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Experiment evaluator for pyagents.')
-    parser.add_argument('results_dir',
-                        help=('The path to the directory containing '
-                              'the experiment results'))
+    parser.add_argument('experiment',
+                        help=('Name of experiment to evaluate. Automatically '
+                              'uses the results of the very latest run of '
+                              'the experiment.'))
 
-    results_dir = parser.parse_args().results_dir
-    evaluate(results_dir)
+    experiment = parser.parse_args().experiment
+    if experiments.has(experiment):
+        results_dir = experiments.newest_results_path(experiment)
+        evaluate(results_dir)
 else:
     raise ImportError("The evaluate_experiment module can only be run as main")

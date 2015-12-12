@@ -1,9 +1,8 @@
 from game_manager import GameManager
 from agents import ActionChainAgent
-import os
+from . import get_results_path
 
-experiment = os.path.basename(__file__).rpartition('.')[0]
-results_path = os.path.join('results', experiment)
+results_path = get_results_path(__name__)
 
 agent = ActionChainAgent(3)
 gm = GameManager("space_invaders.bin", agent, results_path,
