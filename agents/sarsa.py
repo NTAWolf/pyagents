@@ -7,19 +7,16 @@ from util.pongcess import RelativeBall, StateIndex
 
 class SarsaAgent(Agent):
     """
-    Agent a SARSA(lambda) approach
-    Input RGB image is preprocessed, resulting in states
-    - (x, y) ball
-    - y player
-    - y opponent
+    Agent that uses a SARSA(lambda) learning approach
     """
 
-    def __init__(self, n_frames_per_action=4, trace_type='replacing', 
+    def __init__(self, n_frames_per_action=4, 
+                 trace_type='replacing', 
                  learning_rate=0.001,
                  discount=0.99, 
-                 lambda_v=0.5):
+                 lambda_v=0.5,
+                 record=False):
         super(SarsaAgent, self).__init__(name='Sarsa', version='1')
-        self.experience = CircularList(1000)
         self.n_frames_per_action = n_frames_per_action
 
         self.epsilon = LinearInterpolationManager([(0, 1.0), (1e4, 0.1)])
@@ -37,8 +34,17 @@ class SarsaAgent(Agent):
         self.q_vals = None
         self.e_vals = None
 
-    def get_most_valuable_action(self):
-        return np.argmax(self.q_vals)
+        self.n_goals = 0
+        self.n_greedy = 0
+        self.n_random = 0
+
+        self.record = record
+        if record:
+            # 5 action, 3 states 
+            # => q_vals.shape == (5, 3)
+            #    e_vals.shape == (5, 3)
+            #    sarsa.shape == (5, 1)
+            self.mem = CircularList(10000) 
 
     def select_action(self):
         """
@@ -69,7 +75,7 @@ class SarsaAgent(Agent):
         a_ = self.e_greedy(s_)
         self.action_repeat_manager.set(a_)
         r = self.r_
-        print "running SARSA with {}".format([s, a, r, s_, a_])
+        # print "running SARSA with {}".format([s, a, r, s_, a_])
 
         """
               d = R + gamma*Q(S', A') - Q(S, A)
@@ -91,11 +97,7 @@ class SarsaAgent(Agent):
             
         # TODO: currently Q(s, a) is updated for all a, not a in A(s)!
         self.q_vals += self.learning_rate * d * self.e_vals
-        #print "  q   : lr '{}', d '{}', e_vals mean {}".format(self.learning_rate, d, self.e_vals.mean())
-        print "  q(s): {}".format(', '.join(['{:.2} '.format(q) for q in self.q_vals[s,:]]))
         self.e_vals *= (self.discount * self.lambda_v)
-        #print "  e   : discount: '{}', l: '{}'".format(self.discount, self.lambda_v)
-        #print "  e(s):{}".format(self.e_vals[s,:])
 
         # save current state, action for next iteration
         self.s_ = s_
@@ -103,21 +105,35 @@ class SarsaAgent(Agent):
 
         self.r_ = 0
 
-        return a_
+        # save the state
+        if self.record: 
+            self.mem.append({'e_vals': np.copy(self.e_vals), 
+                             'q_vals': np.copy(self.q_vals), 
+                             'sarsa': (s, a, r, s_, a_)})
+
+        return self.available_actions[a_]
 
     def e_greedy(self, sid):
         """Returns action index
         """
         # decide on next action a'
         # E-greedy strategy
-        if np.random.random() < self.epsilon.next(): 
-            action = self.get_random_action()
-            action = np.argmax(self.available_actions == action)
-            # print "random {}".format(action)
+        #if np.random.random() < self.epsilon.next(): 
+        #    action = self.get_random_action()
+        #    action = np.argmax(self.available_actions == action)
+        #    self.n_random += 1
+        # get the best action given the current state
+        if sid == 0:
+            action = 1
+        elif sid == 2:
+            action = 2
         else:
-            # get the best action given the current state
-            action = np.argmax(self.q_vals[sid, :])
-            # print "greedy {}".format(action)
+            action = 0
+
+            #print 'sid', sid, 'action', action
+
+        #action = np.argmax(self.q_vals[sid, :])
+        self.n_greedy += 1
         return action
 
     def set_available_actions(self, actions):
@@ -126,8 +142,8 @@ class SarsaAgent(Agent):
         print 'type(actions)',type(actions)
         state_n = len(self.preprocessor.enumerate_states())
 
-        # print 'state_n',state_n
-        # print 'actions',actions
+        print 'state_n',state_n
+        print 'actions',actions
         self.q_vals = np.zeros((state_n, len(actions)))
         self.e_vals = np.zeros((state_n, len(actions)))
 
@@ -139,36 +155,44 @@ class SarsaAgent(Agent):
         #       before select_action completes!
         self.r_ += reward
         if reward > 0:
-            print "======================================================"
-            print "======================================================"
-            print "======================================================"
-            print "======================================================"
-            print "====HE SHOOOTS - HE SCORES ==========================="
-            print "======================================================"
-            print "====GOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOAAAAAAAAAAALLL===="
-            print "======================================================"
-            print "======================================================"
-            print "======================================================"
-            print "======================================================"
-            sleep(2)
+            self.n_goals += 1
 
     def on_episode_start(self):
-        print "Agent episode start"
+        self.n_goals = 0
+        self.n_greedy = 0
+        self.n_random = 0
 
     def on_episode_end(self):
-        self.flush_experience()
+        print "  q(s): {}".format(self.q_vals)
+        print "  e(s): {}".format(self.e_vals)
+        print "  goals: {}".format(self.n_goals)
+        print "  n_greedy: {}".format(self.n_greedy)
+        print "  n_random: {}".format(self.n_random)
 
-    def flush_experience(self):
-        pass
-        # self.experience.append(tuple(self._sars))
+        if self.record:
+            a_s = [(e['sarsa'][4], e['sarsa'][3]) for e in self.mem]
+            a_counts = [0] * self.q_vals.shape[0]
+            s_counts = [0] * self.q_vals.shape[1]
+            for a, s in a_s:
+                a_counts[a] += 1
+                s_counts[s] += 1
+            print "  actions: {}".format(a_counts)
+            print "  states: {}".format(s_counts)
+
+            self.mem.clear()
+
+    def get_learning_dump(self):
+        return self.mem
 
     def get_settings(self):
         settings =  {
             "name": self.name,
             "version": self.version,
             "preprocessor": self.preprocessor.get_settings(),
-            # "n_frames_per_action": self.n_frames_per_action,
-            # "experience_replay": self.experience.capacity(),
+            "n_frames_per_action": self.n_frames_per_action,
+            "learning_rate": self.learning_rate,
+            "discount_rate": self.discount, 
+            "lambda": self.lambda_v,
         }
 
         settings.update(super(SarsaAgent, self).get_settings())
