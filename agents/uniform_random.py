@@ -1,5 +1,4 @@
 from . import Agent
-from random import randrange
 
 
 class UniformRandomAgent(Agent):

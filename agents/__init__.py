@@ -4,3 +4,4 @@ from development import DevelopmentAgent
 from uniform_random import UniformRandomAgent
 from sarsa import SarsaAgent
 from sl import SLAgent
+from smart import SmartAgent

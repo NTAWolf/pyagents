@@ -24,8 +24,8 @@ class Agent(object):
     def set_available_actions(self, actions):
         self.available_actions = list(actions)
 
-    def set_raw_state_callbacks(self, state_functions):
-        pass
+    def set_raw_state_callbacks(self, raw_state_callbacks):
+        self.raw_state_callbacks = raw_state_callbacks
 
     def on_episode_start(self):
         """Called on episode start by the GameManager

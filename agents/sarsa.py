@@ -10,6 +10,7 @@ class SarsaAgent(Agent):
     Agent that uses a SARSA(lambda) learning approach
     """
 
+
     def __init__(self, n_frames_per_action=4, 
                  trace_type='replacing', 
                  learning_rate=0.001,

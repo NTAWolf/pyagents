@@ -1,5 +1,3 @@
-from random import randrange
-
 
 class RepeatManager(object):
     """Handles the overhead of repeating
