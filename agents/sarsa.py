@@ -47,6 +47,9 @@ class SarsaAgent(Agent):
             #    sarsa.shape == (5, 1)
             self.mem = CircularList(10000) 
 
+    def reset(self):
+        pass
+
     def select_action(self):
         """
         Initialize Q(s; a) arbitrarily, for all s in S; a in A(s)

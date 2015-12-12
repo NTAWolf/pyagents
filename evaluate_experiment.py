@@ -29,7 +29,7 @@ def evaluate(experiment_log):
 
     episode_stats = [m.groups()
                      for m in map(episode_stats_re.match, log) if m != None]
-    episode_stats = [(int(reward), int(duration))
+    episode_stats = [(int(reward), float(duration))
                      for reward, duration in episode_stats]
     episode_stats = pd.DataFrame(episode_stats, columns=[
                                  "total_reward", "duration"])

@@ -32,5 +32,8 @@ class DevelopmentAgent(Agent):
     def on_episode_end(self):
         print "Agent sees that episode ends"
 
+    def reset(self):
+        pass
+
     def get_settings(self):
         return super(DevelopmentAgent, self).get_settings()

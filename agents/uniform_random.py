@@ -20,3 +20,6 @@ class UniformRandomAgent(Agent):
     def on_episode_end(self):
         pass
 
+    def reset(self):
+        pass
+
