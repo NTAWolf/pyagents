@@ -8,11 +8,10 @@ class CircularList(object):
     """
 
     def __init__(self, length):
-        self.data = [None for _ in xrange(length)]
-        self.i = -1  # Index of the last changed object
+        self.length = length
         # Flag set to True when the whole list is filled out and we start
         # looping
-        self.full = False
+        self.clear()
 
     def append(self, value):
         self.i += 1
@@ -20,6 +19,11 @@ class CircularList(object):
             self.i = 0
             self.full = True
         self.data[self.i] = value
+        
+    def clear(self):
+        self.data = [None for _ in xrange(self.length)]
+        self.full = False
+        self.i = -1
 
     def uniform_random_sample(self, sample_size):
         indices = np.random.randint(len(self), size=sample_size)
