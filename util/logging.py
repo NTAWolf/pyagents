@@ -18,7 +18,7 @@ class CSVLogger(object):
     def clear(self, newitem=None):
         with open(self.path, 'w') as f:
             if newitem:
-                f.write(newitem)
+                f.write(newitem + '\n')
 
 class Logger(object):
 
