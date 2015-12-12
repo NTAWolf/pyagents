@@ -70,29 +70,12 @@ class SmartAgent(Agent):
 
     def receive_reward(self, reward):
         pass
-        # self.r_ += reward
-        # if reward > 0:
-        #     print "======================================================"
-        #     print "======================================================"
-        #     print "======================================================"
-        #     print "======================================================"
-        #     print "====HE SHOOOTS - HE SCORES ==========================="
-        #     print "======================================================"
-        #     print "====GOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOAAAAAAAAAAALLL===="
-        #     print "======================================================"
-        #     print "======================================================"
-        #     print "======================================================"
-        #     print "======================================================"
-            # sleep(2)
-
 
     def get_settings(self):
         settings =  {
             "name": self.name,
             "version": self.version,
             "preprocessor": self.preprocessor.get_settings(),
-            # "n_frames_per_action": self.n_frames_per_action,
-            # "experience_replay": self.experience.capacity(),
         }
 
         settings.update(super(SmartAgent, self).get_settings())

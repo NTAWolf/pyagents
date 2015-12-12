@@ -15,7 +15,7 @@ class SarsaAgent(Agent):
     """
 
     def __init__(self, n_frames_per_action=4, trace_type='replacing', 
-                 learning_rate=0.001,
+                 learning_rate=0.001,   
                  discount=0.99, 
                  lambda_v=0.5):
         super(SarsaAgent, self).__init__(name='Sarsa', version='1')

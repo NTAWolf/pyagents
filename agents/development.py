@@ -12,9 +12,9 @@ class DevelopmentAgent(Agent):
             name='DevelopmentAgent', version='2')
         self.c = 0
 
-    def select_action(self, state):
+    def select_action(self):
         if self.c > 100:
-            raw = self.raw_state.raw()
+            raw = self.raw_state_callbacks.raw()
             print raw.shape
             np.save('verytemp.npy', raw)
             import sys
