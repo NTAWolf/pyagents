@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
     experiment = parser.parse_args().experiment
     if experiments.has(experiment):
-        results_dir = experiments.newest_results_path(experiment)
+        results_dir = experiments.get_newest_results_path(experiment)
         evaluate(results_dir)
 else:
     raise ImportError("The evaluate_experiment module can only be run as main")
