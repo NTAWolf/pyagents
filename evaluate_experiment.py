@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
 import argparse
 
 import os
-import shutil
 import json
 
 import pandas as pd
@@ -51,8 +49,12 @@ class Evaluator(object):
     def init_eval_path(s):
         eval_path = s.get_path('evaluation')
         if os.path.exists(eval_path):
-            shutil.rmtree(eval_path)
-        os.makedirs(eval_path)
+            # Clear the directory
+            files = os.listdir(eval_path)
+            for f in files:
+                os.remove(os.path.join(eval_path,f))
+        else:
+            os.makedirs(eval_path)
         s.eval_path = eval_path
 
     def get_path(s, name):
@@ -76,14 +78,37 @@ class Evaluator(object):
     def plot_q_value(s):
         if s.q_e is None:
             return
+
+        s.q_e = s.downsample(s.q_e, 3000)
+
         cols = [c for c in s.q_e.columns if c.startswith('q')]
         q_vals = s.q_e[cols]
 
         q_vals.plot(style=['-'])
         plt.ylabel('Q-value')
         plt.title('Q-values for {}'.format(s.settings['game_name']))
+
         s.expand_plot_lims()
+
+        # TODO draw those vertical lines
+        # # Draw a vertical line for each new episode
+        # episode_val = s.q_e.episode.values
+        # # True where the episode value changes, False elsewhere
+        # ec = (episode_val[1:] + -1 * episode_val[:-1]).astype(bool)
+        # # Include first frame as a new episode
+        # ec = [True] + ec + [False]
+        # # Get indices of episode changes
+        # ec = q_vals.index.values[ec]
+        # s.vertical_lines(ec)
+
         s.savefig('q_vals.png')
+
+    # Data utils
+    def downsample(s, df, n_rows):
+        group_len = len(df) / n_rows
+        if group_len <= 1:
+            return df
+        return df.groupby(lambda x: x/group_len).mean()
 
     # Plot utils
     def expand_plot_lims(s, d=1):
@@ -95,10 +120,15 @@ class Evaluator(object):
         delta = .05 * ran
         return (vals[0]-delta, vals[1]+delta)
 
+    def vertical_lines(s, x_vals):
+        y1, y2 = plt.ylim()
+        for x in x_vals:
+            plt.plot((x,y1), (x,y2), 'k-')
+
     def savefig(s, filename):
         fig_path = os.path.join(s.eval_path, filename)
         plt.savefig(fig_path)
-        print("Saved fig in {}".format(fig_path))
+        print "Saved fig in {}".format(fig_path)
 
 
 if __name__ == '__main__':
