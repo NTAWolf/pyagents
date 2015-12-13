@@ -21,32 +21,47 @@ class Evaluator(object):
         s.init_stats()
         s.init_settings()
         s.init_eval_path()
+        s.init_q_e()
 
         s.evaluate()
 
     def init_stats(s):
-        stats_path = os.path.join(s.results_dir, 'stats.log')
+        stats_path = s.get_path('stats.log')
         stats = pd.read_csv(stats_path)
         s.stats = stats
 
     def init_settings(s):
-        settings_path = os.path.join(s.results_dir, 'settings')
+        settings_path = s.get_path('settings')
 
         with open(settings_path, 'r') as f:
             settings = json.load(f)
 
         s.settings = settings
 
+    def init_q_e(s):
+        q_e_path = s.get_path('q_e.csv')
+        try:
+            s.q_e = pd.read_csv(q_e_path)
+        except IOError:
+            print ("Cannot find {}. Will not evaluate on Q "
+                   "and e values.".format(q_e_path))
+            s.q_e = None
+            
+
     def init_eval_path(s):
-        eval_path = os.path.join(s.results_dir,'evaluation')
+        eval_path = s.get_path('evaluation')
         if os.path.exists(eval_path):
             shutil.rmtree(eval_path)
         os.makedirs(eval_path)
         s.eval_path = eval_path
 
+    def get_path(s, name):
+        return os.path.join(s.results_dir, name)
+
     # Actual evaluation
     def evaluate(s):
         s.plot_mean_reward_per_episode()
+        s.plot_q_value()
 
     def plot_mean_reward_per_episode(s):
         episode_mean = s.stats.groupby('episode').mean()
@@ -58,12 +73,27 @@ class Evaluator(object):
         s.expand_plot_lims()
         s.savefig('mean_reward_per_episode.png')
 
+    def plot_q_value(s):
+        if s.q_e is None:
+            return
+        cols = [c for c in s.q_e.columns if c.startswith('q')]
+        q_vals = s.q_e[cols]
+
+        q_vals.plot(style=['-'])
+        plt.ylabel('Q-value')
+        plt.title('Q-values for {}'.format(s.settings['game_name']))
+        s.expand_plot_lims()
+        s.savefig('q_vals.png')
+
     # Plot utils
     def expand_plot_lims(s, d=1):
-        lim = plt.xlim()
-        plt.xlim((lim[0]-d,lim[1]+d))
-        lim = plt.ylim()
-        plt.ylim((lim[0]-d,lim[1]+d))
+        plt.xlim(s.expand(plt.xlim()))
+        plt.ylim(s.expand(plt.ylim()))
+
+    def expand(s, vals):
+        ran = max(vals) - min(vals)
+        delta = .05 * ran
+        return (vals[0]-delta, vals[1]+delta)
 
     def savefig(s, filename):
         fig_path = os.path.join(s.eval_path, filename)
