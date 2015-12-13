@@ -4,6 +4,8 @@ from . import Agent
 from util.collections import CircularList
 from util.managers import RepeatManager, LinearInterpolationManager
 from util.pongcess import RelativeIntercept, StateIndex
+from util.logging import CSVLogger
+
 
 class SarsaAgent(Agent):
     """
@@ -49,10 +51,12 @@ class SarsaAgent(Agent):
             # => q_vals.shape == (5, 3)
             #    e_vals.shape == (5, 3)
             #    sarsa.shape == (5, 1)
-            self.mem = CircularList(10000) 
+            self.mem = CircularList(100000) 
 
         self.n_rr = 0
         self.n_sa = 0
+
+        self.n_episode = 0
 
 
     def reset(self):
@@ -130,12 +134,16 @@ class SarsaAgent(Agent):
         self.a_ = a_
 
         # save the state
+        self.rlogger.write(self.n_episode, *[q for q in self.q_vals.flatten()])
+
         if self.record: 
-            self.mem.append({'e_vals': np.copy(self.e_vals), 
-                             'q_vals': np.copy(self.q_vals), 
+            self.mem.append({'q_vals': np.copy(self.q_vals), 
                              'sarsa': (s, a, r, s_, a_)})
 
         return self.available_actions[a_]
+
+    def set_results_dir(self, results_dir):
+        super(SarsaAgent, self).set_results_dir(results_dir)
 
     def e_greedy(self, sid):
         """Returns action index
@@ -163,6 +171,12 @@ class SarsaAgent(Agent):
         self.q_vals = np.zeros((state_n, len(actions)))
         self.e_vals = np.zeros((state_n, len(actions)))
 
+        headers = 'episode'
+        for q in range(len(self.q_vals.flatten())):
+            headers = headers + ',q{}'.format(q)
+        self.rlogger = CSVLogger(self.results_dir + '/agent.csv', 'episode,q1,q2,q3,q4,q5,q6,q7,q8,q9', print_items=False)
+
+
     def set_raw_state_callbacks(self, state_functions):
         self.preprocessor = RelativeIntercept(state_functions)
 
@@ -179,11 +193,12 @@ class SarsaAgent(Agent):
         self.n_random = 0
 
     def on_episode_end(self):
-        print "  q(s): {}".format(self.q_vals)
-        print "  e(s): {}".format(self.e_vals)
-        print "  goals: {}".format(self.n_goals)
-        print "  n_greedy: {}".format(self.n_greedy)
-        print "  n_random: {}".format(self.n_random)
+        self.n_episode += 1
+        #print "  q(s): {}".format(self.q_vals)
+        #print "  e(s): {}".format(self.e_vals)
+        #print "  goals: {}".format(self.n_goals)
+        #print "  n_greedy: {}".format(self.n_greedy)
+        #print "  n_random: {}".format(self.n_random)
 
         if self.record:
             a_s = [(e['sarsa'][4], e['sarsa'][3]) for e in self.mem]
