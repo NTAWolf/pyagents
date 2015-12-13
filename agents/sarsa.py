@@ -134,7 +134,7 @@ class SarsaAgent(Agent):
         self.a_ = a_
 
         # save the state
-        self.rlogger.write(self.n_episode, *[q for q in self.q_vals.flatten()])
+        self.rlogger.write(self.n_episode, *[q for q in list(self.q_vals.flatten()) + list(self.e_vals.flatten())])
 
         if self.record: 
             self.mem.append({'q_vals': np.copy(self.q_vals), 
@@ -173,8 +173,10 @@ class SarsaAgent(Agent):
 
         headers = 'episode'
         for q in range(len(self.q_vals.flatten())):
-            headers = headers + ',q{}'.format(q)
-        self.rlogger = CSVLogger(self.results_dir + '/agent.csv', 'episode,q1,q2,q3,q4,q5,q6,q7,q8,q9', print_items=False)
+            headers += ',q{}'.format(q)
+        for e in range(len(self.e_vals.flatten())):
+            headers += ',e{}'.format(e)
+        self.rlogger = CSVLogger(self.results_dir + '/q_e.csv', headers, print_items=False)
 
 
     def set_raw_state_callbacks(self, state_functions):
