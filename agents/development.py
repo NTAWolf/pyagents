@@ -16,9 +16,9 @@ class DevelopmentAgent(Agent):
         if self.c > 100:
             raw = self.raw_state_callbacks.raw()
             print raw.shape
-            np.save('verytemp.npy', raw)
-            import sys
-            sys.exit()
+            # np.save('verytemp.npy', raw)
+            # import sys
+            # sys.exit()
         self.c += 1
 
         return super(DevelopmentAgent, self).get_random_action()

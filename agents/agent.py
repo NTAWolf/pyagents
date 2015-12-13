@@ -24,6 +24,9 @@ class Agent(object):
     def set_available_actions(self, actions):
         self.available_actions = list(actions)
 
+    def set_results_dir(self, results_dir):
+        self.results_dir = results_dir
+
     def set_raw_state_callbacks(self, raw_state_callbacks):
         self.raw_state_callbacks = raw_state_callbacks
 

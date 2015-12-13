@@ -95,6 +95,7 @@ class GameManager(object):
                                  self.get_RAM)
         
         self.agent.set_raw_state_callbacks(raw_state_callbacks)
+        self.agent.set_results_dir(self.results_dir)
         
         if self.use_minimal_action_set:
             actions = self.ale.getMinimalActionSet()
@@ -154,6 +155,7 @@ class GameManager(object):
 
         wall_time = time() - episode_start
         self.agent.on_episode_end()
+
 
         # Stats format: CSV with epoch, episode, total_reward, n_frames, wall_time
         self.stats.write(self.n_epoch, self.n_episode, total_reward, 
