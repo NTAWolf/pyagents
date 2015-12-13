@@ -143,6 +143,9 @@ class RelativeIntercept(Feature):
         return -1
         # return int(np.clip(diff, -1, 1))
 
+    def enumerate_states(self):
+        return [-1, 0, 1]
+
     def next_intercept(self, p, v):
         if v[0] < 0:
             return self.intercept_vertical(p, v, OPPONENT_X, self.LEFT)

@@ -24,7 +24,7 @@ class SarsaAgent(Agent):
         super(SarsaAgent, self).__init__(name='Sarsa', version='1')
         self.n_frames_per_action = n_frames_per_action
 
-        self.epsilon = LinearInterpolationManager([(0, 1.0), (1e4, 0.1)])
+        self.epsilon = LinearInterpolationManager([(0, 1.0), (1e4, 0.005)])
         self.action_repeat_manager = RepeatManager(n_frames_per_action - 1)
         
         self.trace_type = trace_type
@@ -51,10 +51,20 @@ class SarsaAgent(Agent):
             #    sarsa.shape == (5, 1)
             self.mem = CircularList(10000) 
 
+        self.n_rr = 0
+        self.n_sa = 0
+
+
     def reset(self):
         pass
 
     def select_action(self):
+        #print "select_action {}".format(self.n_sa)
+        self.n_sa += 1
+
+        #if self.n_sa > 20:
+        #import sys
+        #sys.exit(0)
         """
         Initialize Q(s; a) arbitrarily, for all s in S; a in A(s)
         Repeat (for each episode):
@@ -69,10 +79,6 @@ class SarsaAgent(Agent):
         """
         sid = self.preprocessor.process()
 
-        action = self.action_repeat_manager.next()
-        if action != None:
-            return action
-
         # assign previous s' to the current s
         s = self.s_
         # assign previous a' to the current a
@@ -80,10 +86,17 @@ class SarsaAgent(Agent):
         # get current state
         s_ = sid
 
-        a_ = self.e_greedy(s_)
-        self.action_repeat_manager.set(a_)
         r = self.r_
-        # print "running SARSA with {}".format([s, a, r, s_, a_])
+
+        # select action:
+        # - repeat previous action based on the n_frames_per_action param
+        # - OR choose an action according to the e-greedy policy 
+        a_ = self.action_repeat_manager.next()
+        if a_ is None:
+            a_ = self.e_greedy(s_)
+            self.action_repeat_manager.set(a_)
+
+        #print "running SARSA with {}".format([s, a, r, s_, a_])
 
         """
               d = R + gamma*Q(S', A') - Q(S, A)
@@ -102,16 +115,19 @@ class SarsaAgent(Agent):
         elif self.trace_type is 'dutch':
             self.e_vals[s,a] *= (1 - self.learning_rate)
             self.e_vals[s,a] += 1
-            
+
         # TODO: currently Q(s, a) is updated for all a, not a in A(s)!
         self.q_vals += self.learning_rate * d * self.e_vals
         self.e_vals *= (self.discount * self.lambda_v)
 
+        #if r != 0:
+        #    print "lr: {} d: {}".format(self.learning_rate, d)
+        #    print "d q_vals\n{}".format(self.q_vals - p_q_vals)
+
+
         # save current state, action for next iteration
         self.s_ = s_
         self.a_ = a_
-
-        self.r_ = 0
 
         # save the state
         if self.record: 
@@ -133,13 +149,13 @@ class SarsaAgent(Agent):
         # get the best action given the current state
         else:
             action = np.argmax(self.q_vals[sid, :])
-        self.n_greedy += 1
+            #print "greedy action {} from {}".format(action, self.q_vals[sid,:])
+            self.n_greedy += 1
         return action
 
     def set_available_actions(self, actions):
         super(SarsaAgent, self).set_available_actions(actions)
         # possible state values 
-        print 'type(actions)',type(actions)
         state_n = len(self.preprocessor.enumerate_states())
 
         print 'state_n',state_n
@@ -151,9 +167,9 @@ class SarsaAgent(Agent):
         self.preprocessor = RelativeIntercept(state_functions)
 
     def receive_reward(self, reward):
-        # TODO: receive_rewards() called too frequently! self.r_ is changed
-        #       before select_action completes!
-        self.r_ += reward
+        #print "receive_reward {}".format(self.n_rr)
+        self.n_rr += 1
+        self.r_ = reward
         if reward > 0:
             self.n_goals += 1
 
