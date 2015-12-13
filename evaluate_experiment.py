@@ -2,57 +2,61 @@
 
 from __future__ import print_function
 import argparse
-from datetime import timedelta
+
 import os
-import re
-import subprocess
+import shutil
+import json
 
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn # Makes plots look prettier
+
+import experiments
+
+def evaluate(results_dir):
+    print("Evaluating experiment from directory {}".format(results_dir))
+
+    stats_path = os.path.join(results_dir, 'stats.log')
+    settings_path = os.path.join(results_dir, 'settings')
+
+    with open(settings_path, 'r') as f:
+        settings = json.load(f)
 
 
-def evaluate(experiment_log):
-    print("Evaluating experiment from logfile:", experiment_log)
+    stats = pd.read_csv(stats_path)
+    episode_mean = stats.groupby('episode').mean()
+    episode_mean.total_reward.plot(style=['o'])
+    plt.ylabel('Mean total reward over {} epochs'.format(
+                    len(stats.epoch.unique())))
+    plt.title('{}'.format(settings['game_name']))
 
-    figfile = os.path.join(os.path.dirname(logfile), 'episode_stats.png')
+    lim = plt.xlim()
+    plt.xlim((lim[0]-1,lim[1]+1))
+    lim = plt.ylim()
+    plt.ylim((lim[0]-1,lim[1]+1))
 
-    with open(experiment_log, 'r') as f:
-        log = f.readlines()
+    eval_path = os.path.join(results_dir,'evaluation')
+    if os.path.exists(eval_path):
+        shutil.rmtree(eval_path)
+    os.makedirs(eval_path)
 
-    output_dir = os.path.join(os.path.dirname(logfile), experiment_log[:-4] + '_evaluation')
-    os.makedirs(output_dir)
-    print("Writing evaluation to directory:", output_dir)
+    fig_path = os.path.join(eval_path, 'mean_reward_per_episode.png')
+    plt.savefig(fig_path)
 
-    # Average score per episode
-
-    episode_stats_re = re.compile(
-        '^episode: Ended with total reward (\d+) after (.*)$')
-
-    episode_stats = [m.groups()
-                     for m in map(episode_stats_re.match, log) if m != None]
-    episode_stats = [(int(reward), int(duration))
-                     for reward, duration in episode_stats]
-    episode_stats = pd.DataFrame(episode_stats, columns=[
-                                 "total_reward", "duration"])
-    episode_stats['total_reward_win20'] = pd.rolling_mean(episode_stats.total_reward, 20)
-    episode_stats['total_reward_win50'] = pd.rolling_mean(episode_stats.total_reward, 50)
-
-    ax = episode_stats[['total_reward', 'total_reward_win20', 'total_reward_win50']].plot()
-    fig = ax.get_figure()
-    fig.savefig(figfile)
-
-    subprocess.call(['open', figfile])
+    print("Saved fig in {}".format(fig_path))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Experiment evaluator for pyagents.')
-    parser.add_argument('logfile',
-                        help=('The path to the logfile of the experiment you '
-                              'want to evaluate.')
-                        )
+    parser.add_argument('experiment',
+                        help=('Name of experiment to evaluate. Automatically '
+                              'uses the results of the very latest run of '
+                              'the experiment.'))
 
-
-    logfile = parser.parse_args().logfile
-    evaluate(logfile)
+    experiment = parser.parse_args().experiment
+    if experiments.has(experiment):
+        results_dir = experiments.newest_results_path(experiment)
+        evaluate(results_dir)
 else:
     raise ImportError("The evaluate_experiment module can only be run as main")

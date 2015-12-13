@@ -1,5 +1,25 @@
 from __future__ import print_function
 
+
+class CSVLogger(object):
+
+    def __init__(self, path, header=None, print_items=False):
+        self.path = path
+        self.clear(header)
+        self.print_items = print_items
+
+    def write(self, *args):
+        args = ','.join([str(a) for a in args])
+        if self.print_items:
+            print(args)
+        with open(self.path, 'a') as f:
+            f.write(args + '\n')
+
+    def clear(self, newitem=None):
+        with open(self.path, 'w') as f:
+            if newitem:
+                f.write(newitem + '\n')
+
 class Logger(object):
 
     def __init__(self, levels, print_threshold, path, prepend=None, formatter=None):

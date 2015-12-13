@@ -71,6 +71,9 @@ class SmartAgent(Agent):
     def receive_reward(self, reward):
         pass
 
+    def reset(self):
+        pass
+
     def get_settings(self):
         settings =  {
             "name": self.name,
