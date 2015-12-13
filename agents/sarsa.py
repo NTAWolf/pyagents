@@ -82,13 +82,15 @@ class SarsaAgent(Agent):
             until S is terminal
         """
         sid = self.preprocessor.process()
+        if sid == 0:
+            return 0
 
         # assign previous s' to the current s
         s = self.s_
         # assign previous a' to the current a
         a = self.a_
         # get current state
-        s_ = sid
+        s_ = self.state_mapping[str(sid)]
 
         r = self.r_
 
@@ -154,7 +156,7 @@ class SarsaAgent(Agent):
             action = self.get_random_action()
             action = np.argmax(self.available_actions == action)
             self.n_random += 1
-        # get the best action given the current state
+            # get the best action given the current state
         else:
             action = np.argmax(self.q_vals[sid, :])
             #print "greedy action {} from {}".format(action, self.q_vals[sid,:])
@@ -162,9 +164,17 @@ class SarsaAgent(Agent):
         return action
 
     def set_available_actions(self, actions):
+        # remove NO-OP from available actions
+        actions = np.delete(actions, 0)
+
         super(SarsaAgent, self).set_available_actions(actions)
-        # possible state values 
-        state_n = len(self.preprocessor.enumerate_states())
+
+        states = self.preprocessor.enumerate_states()
+        state_n = len(states)
+
+        # generate state to q_val index mapping
+        self.state_mapping = dict([('{}'.format(v), i) for i, v in enumerate(states)])
+        print self.state_mapping
 
         print 'state_n',state_n
         print 'actions',actions
