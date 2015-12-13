@@ -3,11 +3,15 @@ import numpy as np
 from . import Agent
 from util.collections import CircularList
 from util.managers import RepeatManager, LinearInterpolationManager
-from util.pongcess import RelativeBall, StateIndex
+from util.pongcess import RelativeIntercept, StateIndex
 
 class SarsaAgent(Agent):
     """
-    Agent that uses a SARSA(lambda) learning approach
+    Agent that uses a SARSA(lambda)
+    Input RGB image is preprocessed, resulting in states
+    - (x, y) ball
+    - y player
+    - y opponent
     """
 
 
@@ -119,21 +123,13 @@ class SarsaAgent(Agent):
         """
         # decide on next action a'
         # E-greedy strategy
-        #if np.random.random() < self.epsilon.next(): 
-        #    action = self.get_random_action()
-        #    action = np.argmax(self.available_actions == action)
-        #    self.n_random += 1
+        if np.random.random() < self.epsilon.next(): 
+            action = self.get_random_action()
+            action = np.argmax(self.available_actions == action)
+            self.n_random += 1
         # get the best action given the current state
-        if sid == 0:
-            action = 1
-        elif sid == 2:
-            action = 2
         else:
-            action = 0
-
-            #print 'sid', sid, 'action', action
-
-        #action = np.argmax(self.q_vals[sid, :])
+            action = np.argmax(self.q_vals[sid, :])
         self.n_greedy += 1
         return action
 
@@ -149,7 +145,7 @@ class SarsaAgent(Agent):
         self.e_vals = np.zeros((state_n, len(actions)))
 
     def set_raw_state_callbacks(self, state_functions):
-        self.preprocessor = StateIndex(RelativeBall(state_functions, trinary=True))
+        self.preprocessor = RelativeIntercept(state_functions)
 
     def receive_reward(self, reward):
         # TODO: receive_rewards() called too frequently! self.r_ is changed
