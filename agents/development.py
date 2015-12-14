@@ -13,12 +13,13 @@ class DevelopmentAgent(Agent):
         self.c = 0
 
     def select_action(self):
+        print 'len(self.available_actions)',len(self.available_actions)
         if self.c > 100:
             raw = self.raw_state_callbacks.raw()
             print raw.shape
             # np.save('verytemp.npy', raw)
-            # import sys
-            # sys.exit()
+            import sys
+            sys.exit()
         self.c += 1
 
         return super(DevelopmentAgent, self).get_random_action()

@@ -159,7 +159,7 @@ class GameManager(object):
 
         # Stats format: CSV with epoch, episode, total_reward, n_frames, wall_time
         self.stats.write(self.n_epoch, self.n_episode, total_reward, 
-                         self.ale.getFrameNumber(), '{:.2f}'.format(wall_time))
+                         self.ale.getEpisodeFrameNumber(), '{:.2f}'.format(wall_time))
 
     def _stop_condition_met(self):
         if self.n_episodes:

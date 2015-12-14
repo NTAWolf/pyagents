@@ -7,13 +7,13 @@ from util.pongcess import RelativeIntercept, StateIndex
 from util.logging import CSVLogger
 
 
-class SarsaAgent(Agent):
+class Sarsa2Agent(Agent):
     """
     Agent that uses a SARSA(lambda)
-    Input RGB image is preprocessed, resulting in states
-    - (x, y) ball
-    - y player
-    - y opponent
+    Input RAW image is preprocessed, resulting in states
+    + Predicted ball position above player
+    + Predicted ball position within the player pad
+    + Predicted ball position beneath player
     """
 
 
@@ -21,9 +21,8 @@ class SarsaAgent(Agent):
                  trace_type='replacing', 
                  learning_rate=0.001,
                  discount=0.99, 
-                 lambda_v=0.5,
-                 record=False):
-        super(SarsaAgent, self).__init__(name='Sarsa', version='1')
+                 lambda_v=0.5):
+        super(Sarsa2Agent, self).__init__(name='Sarsa2', version='2')
         self.n_frames_per_action = n_frames_per_action
 
         self.epsilon = LinearInterpolationManager([(0, 1.0), (1e4, 0.005)])
@@ -34,41 +33,31 @@ class SarsaAgent(Agent):
         self.lambda_v = lambda_v
         self.discount = discount
 
+        self.q_vals = None
+        self.e_vals = None
+
+        self.initialize_asr_and_counters()
+
+    def initialize_asr_and_counters(self):
         self.a_ = 0
         self.s_ = 0
         self.r_ = 0
 
-        self.q_vals = None
-        self.e_vals = None
-
         self.n_goals = 0
         self.n_greedy = 0
         self.n_random = 0
-
-        self.record = record
-        if record:
-            # 5 action, 3 states 
-            # => q_vals.shape == (5, 3)
-            #    e_vals.shape == (5, 3)
-            #    sarsa.shape == (5, 1)
-            self.mem = CircularList(100000) 
-
         self.n_rr = 0
         self.n_sa = 0
 
         self.n_episode = 0
 
-
     def reset(self):
-        pass
+        self.q_vals[:] = 0.0
+        self.e_vals[:] = 0.0
+        self.epsilon.reset()
+        self.initialize_asr_and_counters()
 
     def select_action(self):
-        #print "select_action {}".format(self.n_sa)
-        self.n_sa += 1
-
-        #if self.n_sa > 20:
-        #import sys
-        #sys.exit(0)
         """
         Initialize Q(s; a) arbitrarily, for all s in S; a in A(s)
         Repeat (for each episode):
@@ -81,9 +70,9 @@ class SarsaAgent(Agent):
               update_q()
             until S is terminal
         """
+        self.n_sa += 1
+
         sid = self.preprocessor.process()
-        if sid == 0:
-            return 0
 
         # assign previous s' to the current s
         s = self.s_
@@ -102,18 +91,31 @@ class SarsaAgent(Agent):
             a_ = self.e_greedy(s_)
             self.action_repeat_manager.set(a_)
 
-        #print "running SARSA with {}".format([s, a, r, s_, a_])
-
-        """
-              d = R + gamma*Q(S', A') - Q(S, A)
-              E(S,A) = E(S,A) + 1           (accumulating traces)
-           or E(S,A) = (1 - a) * E(S,A) + 1 (dutch traces)
-           or E(S;A) = 1                    (replacing traces)
-              For all s in S; a in A(s):
-                Q(s,a) = Q(s,a) + E(s,a)   
-                E(s,a) = gamma * lambda * E(s,a)
-        """
+        # Calculate update delta
         d = r + self.discount * self.q_vals[s_, a_] - self.q_vals[s, a]
+
+        # Handle traces
+        self.update_trace(s,a)
+
+        # TODO: currently Q(s, a) is updated for all a, not a in A(s)!
+        self.q_vals += self.learning_rate * d * self.e_vals
+        self.e_vals *= (self.discount * self.lambda_v)
+
+        # save current state, action for next iteration
+        self.s_ = s_
+        self.a_ = a_
+
+        # save the state
+        self.rlogger.write(self.n_episode, 
+                           *[q for q in list(self.q_vals.flatten())
+                             + list(self.e_vals.flatten())])
+
+        return self.available_actions[a_]
+
+    def set_results_dir(self, results_dir):
+        super(Sarsa2Agent, self).set_results_dir(results_dir)
+
+    def update_trace(self, s, a):
         if self.trace_type is 'accumulating':
             self.e_vals[s,a] += 1
         elif self.trace_type is 'replacing':
@@ -121,31 +123,6 @@ class SarsaAgent(Agent):
         elif self.trace_type is 'dutch':
             self.e_vals[s,a] *= (1 - self.learning_rate)
             self.e_vals[s,a] += 1
-
-        # TODO: currently Q(s, a) is updated for all a, not a in A(s)!
-        self.q_vals += self.learning_rate * d * self.e_vals
-        self.e_vals *= (self.discount * self.lambda_v)
-
-        #if r != 0:
-        #    print "lr: {} d: {}".format(self.learning_rate, d)
-        #    print "d q_vals\n{}".format(self.q_vals - p_q_vals)
-
-
-        # save current state, action for next iteration
-        self.s_ = s_
-        self.a_ = a_
-
-        # save the state
-        self.rlogger.write(self.n_episode, *[q for q in list(self.q_vals.flatten()) + list(self.e_vals.flatten())])
-
-        if self.record: 
-            self.mem.append({'q_vals': np.copy(self.q_vals), 
-                             'sarsa': (s, a, r, s_, a_)})
-
-        return self.available_actions[a_]
-
-    def set_results_dir(self, results_dir):
-        super(SarsaAgent, self).set_results_dir(results_dir)
 
     def e_greedy(self, sid):
         """Returns action index
@@ -164,17 +141,15 @@ class SarsaAgent(Agent):
         return action
 
     def set_available_actions(self, actions):
-        # remove NO-OP from available actions
-        actions = np.delete(actions, 0)
-
-        super(SarsaAgent, self).set_available_actions(actions)
+        super(Sarsa2Agent, self).set_available_actions(actions)
 
         states = self.preprocessor.enumerate_states()
         state_n = len(states)
 
         # generate state to q_val index mapping
-        self.state_mapping = dict([('{}'.format(v), i) for i, v in enumerate(states)])
-        print self.state_mapping
+        self.state_mapping = dict([('{}'.format(v), i) 
+                                    for i, v in enumerate(states)])
+        print "Agent state_mapping:", self.state_mapping
 
         print 'state_n',state_n
         print 'actions',actions
@@ -186,11 +161,12 @@ class SarsaAgent(Agent):
             headers += ',q{}'.format(q)
         for e in range(len(self.e_vals.flatten())):
             headers += ',e{}'.format(e)
-        self.rlogger = CSVLogger(self.results_dir + '/q_e.csv', headers, print_items=False)
+        self.rlogger = CSVLogger(self.results_dir + '/q_e.csv', 
+                                 headers, print_items=False)
 
 
     def set_raw_state_callbacks(self, state_functions):
-        self.preprocessor = RelativeIntercept(state_functions, mode='binary')
+        self.preprocessor = RelativeIntercept(state_functions)
 
     def receive_reward(self, reward):
         #print "receive_reward {}".format(self.n_rr)
@@ -212,20 +188,6 @@ class SarsaAgent(Agent):
         #print "  n_greedy: {}".format(self.n_greedy)
         #print "  n_random: {}".format(self.n_random)
 
-        if self.record:
-            a_s = [(e['sarsa'][4], e['sarsa'][3]) for e in self.mem]
-            a_counts = [0] * self.q_vals.shape[0]
-            s_counts = [0] * self.q_vals.shape[1]
-            for a, s in a_s:
-                a_counts[a] += 1
-                s_counts[s] += 1
-            print "  actions: {}".format(a_counts)
-            print "  states: {}".format(s_counts)
-
-            self.mem.clear()
-
-    def get_learning_dump(self):
-        return self.mem
 
     def get_settings(self):
         settings =  {
@@ -238,6 +200,6 @@ class SarsaAgent(Agent):
             "lambda": self.lambda_v,
         }
 
-        settings.update(super(SarsaAgent, self).get_settings())
+        settings.update(super(Sarsa2Agent, self).get_settings())
         
         return settings

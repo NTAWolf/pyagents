@@ -26,6 +26,8 @@ OPPONENT_X = 19 # to 16 (incl)
 PLAY_AREA_TOP = 34
 PLAY_AREA_BOTTOM = 194
 
+PAD_HEIGHT = 15
+
 X_RANGE = np.arange(160)
 Y_RANGE = np.arange(0, PLAY_AREA_BOTTOM - PLAY_AREA_TOP)
 
@@ -88,16 +90,20 @@ class RelativeIntercept(Feature):
     is unknown.
     """
 
-    def __init__(self, raw_state_callbacks):
+    def __init__(self, raw_state_callbacks, mode='trinary'):
+        """raw_state_callbacks is the callback namedtuple supplied
+        by GameManager
+        mode is 'binary' or 'trinary', where 
+            'binary' makes process() only output 1 or -1 (predicted ball above
+                or below agent's pad)
+            'trinary' makes process() output 1, 0, or -1 (predicted ball 
+                above, on player pad, or below)
+        """
         super(RelativeIntercept, self).__init__("RelativeIntercept")
         self.pos = Positions(raw_state_callbacks)
+        self.mode = mode
         self.last_valid_v = None
         self.last_valid_p = None
-
-        # For debugging
-        self.intercept = (5,5)
-        self.p1 = -1
-        self.ag = -1
 
         self.LEFT = 0
         self.TOP = 1
@@ -114,15 +120,15 @@ class RelativeIntercept(Feature):
 
         if self.last_valid_p is None:
             self.last_valid_p = p
-            return 0
+            return self.get_error_value()
 
         v = p - self.last_valid_p
         self.last_valid_p = p
 
         # Is v corrupt?
-        if np.linalg.norm(v[0]) < 1e-1:
+        if abs(v[0]) < 1e-1:
             if self.last_valid_v is None:
-                return 0
+                return self.get_error_value()
             v = self.last_valid_v
         else:
             self.last_valid_v = v
@@ -132,19 +138,38 @@ class RelativeIntercept(Feature):
         while edge != self.RIGHT:
             p, v, edge = self.next_intercept(p, v)
 
-        # For debugging
-        self.intercept = p + (0, PLAY_AREA_TOP)
-        self.p1 = p[1]
-        self.ag = self.pos.agent
+        return self.postprocess(p, self.pos.agent)
+
+    def get_error_value(self):
+        if self.mode == 'binary':
+            return 1
+        if self.mode == 'trinary':
+            return 0
+
+    def postprocess(self, predicted_ball, agent):
+        """Handles the different modes,
+        """
 
         # Return relative intercept, clipped to 1,0,-1
-        if p[1] < self.pos.agent:
-            return 1
-        return -1
-        # return int(np.clip(diff, -1, 1))
+        if self.mode == 'binary':
+            if predicted_ball[1] < agent:
+                return 1
+            return -1
+        if self.mode == 'trinary':
+            diff = predicted_ball[1] - agent
+            if abs(diff) < PAD_HEIGHT/2:
+                return 0
+            if diff < 0:
+                return 1
+            return -1
+
 
     def enumerate_states(self):
-        return [-1, 1]
+        if self.mode == 'binary':
+            return [-1, 1]
+        if self.mode == 'trinary':
+            return [-1, 0, 1]
+
 
     def next_intercept(self, p, v):
         if v[0] < 0:

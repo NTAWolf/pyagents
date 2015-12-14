@@ -7,7 +7,7 @@ import json
 
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn # Makes plots look prettier
+import seaborn as sns # Makes plots look prettier
 
 import experiments
 
@@ -63,17 +63,28 @@ class Evaluator(object):
     # Actual evaluation
     def evaluate(s):
         s.plot_mean_reward_per_episode()
+        s.plot_reward_per_episode()
         s.plot_q_value()
 
     def plot_mean_reward_per_episode(s):
         episode_mean = s.stats.groupby('episode').mean()
-        episode_mean.total_reward.plot(style=['o'])
+        episode_mean.total_reward.plot(style=['o-'])
+
         plt.ylabel('Mean total reward over {} epochs'.format(
                         len(s.stats.epoch.unique())))
         plt.title('{}'.format(s.settings['game_name']))
 
         s.expand_plot_lims()
         s.savefig('mean_reward_per_episode.png')
+
+    def plot_reward_per_episode(s):
+        etr = s.stats[['episode', 'total_reward']]
+        fig = etr.plot(x='episode',y='total_reward', style='o', legend='False')
+        plt.ylabel('Total reward in episode')
+        # sns.boxplot(x="episode", y="total_reward", data=s.stats)
+
+        s.expand_plot_lims()
+        s.savefig('reward_per_episode.png')
 
     def plot_q_value(s):
         if s.q_e is None:
@@ -126,6 +137,7 @@ class Evaluator(object):
             plt.plot((x,y1), (x,y2), 'k-')
 
     def savefig(s, filename):
+        plt.tight_layout()
         fig_path = os.path.join(s.eval_path, filename)
         plt.savefig(fig_path)
         print "Saved fig in {}".format(fig_path)

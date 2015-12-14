@@ -75,6 +75,9 @@ class LinearInterpolationManager(object):
 
         return y1 + (y2 - y1) * ((self.c - x1) / (x2 - x1))
 
+    def reset(self):
+        self.c = 0
+
     def get_settings(self):
         """Called by the GameManager when it is
         time to store this object's settings

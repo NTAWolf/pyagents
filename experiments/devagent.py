@@ -5,7 +5,7 @@ from . import get_results_path
 results_path = get_results_path(__name__)
 
 agent = Ag()
-gm = GameManager("pong.bin", agent, results_path,
+gm = GameManager("space_invaders.bin", agent, results_path,
                  n_episodes=10,
                  remove_old_results_dir=True, use_minimal_action_set=True)
 gm.run()
