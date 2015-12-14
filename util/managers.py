@@ -1,5 +1,3 @@
-from random import randrange
-
 
 class RepeatManager(object):
     """Handles the overhead of repeating
@@ -76,6 +74,9 @@ class LinearInterpolationManager(object):
         x2, y2 = self.handles[hi2]
 
         return y1 + (y2 - y1) * ((self.c - x1) / (x2 - x1))
+
+    def reset(self):
+        self.c = 0
 
     def get_settings(self):
         """Called by the GameManager when it is

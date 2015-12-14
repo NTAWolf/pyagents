@@ -1,5 +1,4 @@
 from . import Agent
-from random import randrange
 
 
 class UniformRandomAgent(Agent):
@@ -9,7 +8,7 @@ class UniformRandomAgent(Agent):
         super(UniformRandomAgent, self).__init__(
             name='UniformRandom', version='1')
 
-    def select_action(self, state):
+    def select_action(self):
         return self.get_random_action()
 
     def receive_reward(self, reward):
@@ -19,5 +18,8 @@ class UniformRandomAgent(Agent):
         pass
 
     def on_episode_end(self):
+        pass
+
+    def reset(self):
         pass
 

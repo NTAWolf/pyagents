@@ -10,7 +10,7 @@ class Agent(object):
         self.name = name
         self.version = version
 
-    def select_action(self, state):
+    def select_action(self):
         """Returns one of the actions set in set_available_actions.
         """
         raise NotImplementedError("Method not implemented")
@@ -24,15 +24,21 @@ class Agent(object):
     def set_available_actions(self, actions):
         self.available_actions = list(actions)
 
+    def set_results_dir(self, results_dir):
+        self.results_dir = results_dir
+
+    def set_raw_state_callbacks(self, raw_state_callbacks):
+        self.raw_state_callbacks = raw_state_callbacks
+
     def on_episode_start(self):
         """Called on episode start by the GameManager
         """
-        raise NotImplementedError("Method not implemented")
+        pass
 
     def on_episode_end(self):
         """Called on episode end by the GameManager
         """
-        raise NotImplementedError("Method not implemented")
+        pass
 
     def get_settings(self):
         """Called by the GameManager when it is

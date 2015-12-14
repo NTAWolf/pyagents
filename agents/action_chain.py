@@ -26,7 +26,7 @@ class ActionChainAgent(Agent):
     def update_e(self):
         self.e = linear_latch(self.nframes, *self.e_params)
 
-    def select_action(self, state):
+    def select_action(self):
         # Always take random action first
         action = self.get_random_action()
 
@@ -84,6 +84,14 @@ class ActionChainAgent(Agent):
                             best_action = a
                             best_value = val
         return best_action
+
+    def reset(self):
+        self.e = 0.5
+        self.nframes = 0
+        self.last_action = None
+        self.q = dict() 
+        self.chain.clear()
+
 
     def get_settings(self):
         settings = {'chain_length': self.chain.capacity(),

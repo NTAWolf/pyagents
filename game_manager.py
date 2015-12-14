@@ -7,13 +7,12 @@ all games and agents supported by ALE.
 from collections import namedtuple
 from datetime import datetime
 import os
-from threading import Thread
+from time import time, sleep
 import shutil
-import util.logging
 
 from ale_python_interface import ALEInterface
 
-from visualise import Visualiser
+import util.logging
 
 ROM_RELATIVE_LOCATION = '../roms/'
 
@@ -24,83 +23,80 @@ class GameManager(object):
     """
 
     def __init__(self, game_name, agent, results_dir,
-                 remove_old_results_dir=False, use_minimal_action_set=True, 
-                 visualise=None):
+                 n_epochs=1, n_episodes=None, n_frames=None,
+                 remove_old_results_dir=False, use_minimal_action_set=True,
+                 min_time_between_frames=0):
         """game_name is one of the supported games (there are many), as a string: "space_invaders.bin"
         agent is an an instance of a subclass of the Agent interface
         results_dir is a string representing a directory in which results and logs are placed
             If it does not exist, it is created.
         use_minimal_action_set determines whether the agent is offered all possible actions,
             or only those (minimal) that are applicable to the specific game.
-        visualise is None for no visualization (default), or one of 'raw', 'ram', 'grey', 'rgb',
-            or a method that takes as an argument the GameManager's list of methods (its 
-            state_functions) and returns a new method that returns an np.array for Visualiser.
-            The RAM vector is reshaped to a 8x16 array.
+        min_time_between_frames is the minimum required time in seconds between
+            frames. If 0, the game is unrestricted.
         """
         self.game_name = game_name
         self.agent = agent
         self.use_minimal_action_set = use_minimal_action_set
-        self.visualise = visualise
+        self.min_time_between_frames = min_time_between_frames
+        self.n_epochs = n_epochs
+        self.n_episodes = n_episodes
+        self.n_frames = n_frames
 
-        now = datetime.now().strftime('%Y%m%d-%H-%M')
-        # drop .bin, append current time down to the minute
-        self.results_dir = os.path.join(results_dir, game_name[:-4] + now)
-        self.initialize_results_dir(remove_old_results_dir)
+        if ((n_episodes is None and n_frames is None) or 
+            (n_episodes is not None and n_frames is not None)):
+            raise ValueError("Extacly one of n_episodes and n_frames "
+                             "must be defined")
 
-        self.log = util.logging.Logger(('settings', 'action', 'episode', 'run'),
-                                       'episode', os.path.join(self.results_dir, 'GameManager.log'))
+        
+        self.initialize_results_dir(results_dir, remove_old_results_dir)
+
+        self.log = util.logging.Logger(('settings', 'step','episode', 'epoch', 'overall'),
+                                       'settings', os.path.join(self.results_dir, 'GameManager.log'))
+
+        self.stats = util.logging.CSVLogger(
+                            os.path.join(self.results_dir, 'stats.log'),
+                            header='epoch,episode,total_reward,n_frames,wall_time',
+                            print_items=True)
 
         self._object_cache = dict()
 
-    def initialize_results_dir(self, remove_existing=False):
+        self.initialize_ale()
+        self.initialize_agent()
+
+        self.dump_settings()
+
+    def initialize_results_dir(self, results_dir, remove_existing=False):
         """Creates the whole path of directories if they do no exist.
         If they do exist, raises an error unless remove_existing is True,
         in which case the existing directory is deleted.
         """
+        now = datetime.now().strftime('%Y%m%d-%H-%M')
+        # drop .bin, append current time down to the minute
+        results_dir = os.path.join(results_dir, self.game_name[:-4] + now)
+
         if remove_existing:
-            if os.path.exists(self.results_dir):
-                shutil.rmtree(self.results_dir)
+            if os.path.exists(results_dir):
+                shutil.rmtree(results_dir)
         # Should raise an error if directory exists
-        os.makedirs(self.results_dir)
+        os.makedirs(results_dir)
 
-    def initialize_visualiser(self):
-        """If the internal flag for visualization is set, 
-        prepare the visualizer.
-        """
-        if self.visualise:
-            framerate = 60
-            if self.visualise == 'ram':
-                def callback():
-                    ram = self.get_RAM()
-                    return ram.reshape((8, -1))
-            elif self.visualise == 'raw':
-                callback = self.get_screen
-            elif self.visualise == 'grey':
-                callback = self.get_screen_grayscale
-            elif self.visualise == 'rgb':
-                callback = self.get_screen_RGB
-            else:
-                callback = self.visualise(self.state_functions)
+        self.results_dir = results_dir
 
-            self.visualiser = Visualiser(callback, framerate,
-                                         title="{}: {}".format(self.game_name, self.visualise))
-        else:
-            self.visualiser = None
-
-    def initialize_run(self, n_episodes, n_frames):
-        if n_episodes == n_frames:
-            self.log.run("Aborted due to bad input to run()")
-            raise ValueError(
-                "One and only one of n_episodes and n_frames can be defined at a time")
-
-        self.n_episodes = n_episodes
-        self.n_frames = n_frames
-
-        self.log.settings("n_episodes {}".format(str(n_episodes)))
-        self.log.settings("n_frames {}".format(str(n_frames)))
-
+    def initialize_ale(self):
         self.ale = ALEInterface()
         self.ale.loadROM(os.path.join(ROM_RELATIVE_LOCATION, self.game_name))
+
+    def initialize_agent(self):
+        RSC = namedtuple('RawStateCallbacks', ['raw', 'grey', 'rgb', 'ram'])
+        raw_state_callbacks = RSC(self.get_screen, 
+                                 self.get_screen_grayscale, 
+                                 self.get_screen_RGB, 
+                                 self.get_RAM)
+        
+        self.agent.set_raw_state_callbacks(raw_state_callbacks)
+        self.agent.set_results_dir(self.results_dir)
+        
         if self.use_minimal_action_set:
             actions = self.ale.getMinimalActionSet()
         else:
@@ -108,64 +104,66 @@ class GameManager(object):
 
         self.agent.set_available_actions(actions)
 
-        SF = namedtuple('StateFunctions', ['raw', 'grey', 'rgb', 'ram'])
-        self.state_functions = SF(
-            self.get_screen, self.get_screen_grayscale, self.get_screen_RGB, self.get_RAM)
-        self.episodes_passed = 0
+    def rest(self, already_elapsed):
+        rest_time = self.min_time_between_frames - already_elapsed
+        if rest_time > 0:
+            sleep(rest_time)
 
-        self.initialize_visualiser()
-        self.dump_settings()
-        
-
-    def run(self, n_episodes=None, n_frames=None):
-        """Run the wanted number of episodes or the wanted number of frames. 
-        No more than one of them can be assigned to a value at a time.
+    def run(self):
+        """Runs self.n_epochs epochs, where the agent's learning is
+        reset for each new epoch.
+        Each epoch lasts self.n_episodes or self.n_frames, whichever is 
+            defined.
         """
-        self.initialize_run(n_episodes, n_frames)
-        if self.visualiser:
-            t = Thread(target=self._run)
-            t.start()
-            self.visualiser.run()
-            # self.visualiser.on_draw(None)
-        else:
-            self._run()
+        self.log.overall('Starting run')
+        run_start = time()
+        for epoch in xrange(self.n_epochs):
+            self.agent.reset()
+            self.n_epoch = epoch
+            self._run_epoch()
+        self.log.overall('End of run ({:.2f} s)'.format(time() - run_start))
 
-    def _run(self):
-        """Run the wanted number of episodes or the wanted number of frames. 
-        No more than one of them can be assigned to a value at a time.
-        """
-        self.log.run("Starting run")
-        start = datetime.now()
+    def _run_epoch(self):
+        self.n_episode = 0
+
+        start = time()
         while not self._stop_condition_met():
-            self.log.episode(
-                "Starting episode {}".format(self.episodes_passed))
             self._run_episode()
-            self.episodes_passed += 1
-        duration = (datetime.now() - start).total_seconds()
-        self.log.run("Finished run after {} seconds".format(duration))
+            self.n_episode += 1
+        wall_time = (time() - start)
+        frames = self.ale.getFrameNumber()
+
+        self.log.epoch("Finished epoch after {:.2f} seconds".format(wall_time))
 
     def _run_episode(self):
-        start = datetime.now()
-        total_reward = 0
-        nframes = 0
-
+        self.ale.reset_game()
         self.agent.on_episode_start()
+
+        total_reward = 0
+        episode_start = time()
+
         while (not self.ale.game_over()) and (not self._stop_condition_met()):
-            action = self.agent.select_action(self.state_functions)
+            timestep_start = time()
+
+            action = self.agent.select_action()
             reward = self.ale.act(action)
             self.agent.receive_reward(reward)
+
             total_reward += reward
-            nframes += 1
+
+            self.rest(time() - timestep_start)
+
+        wall_time = time() - episode_start
         self.agent.on_episode_end()
 
-        duration = (datetime.now() - start).total_seconds()
-        self.log.episode('Ended with total reward {} after {} seconds and {} frames'.format(
-            total_reward, duration, nframes))
-        self.ale.reset_game()
+
+        # Stats format: CSV with epoch, episode, total_reward, n_frames, wall_time
+        self.stats.write(self.n_epoch, self.n_episode, total_reward, 
+                         self.ale.getEpisodeFrameNumber(), '{:.2f}'.format(wall_time))
 
     def _stop_condition_met(self):
         if self.n_episodes:
-            return self.episodes_passed >= self.n_episodes
+            return self.n_episode >= self.n_episodes
         return self.ale.getFrameNumber() >= self.n_frames
 
     # Methods for state perception
@@ -216,8 +214,10 @@ class GameManager(object):
         """
         return {
             "game_name": self.game_name,
+            "n_epochs": self.n_epochs,
+            "n_episodes": self.n_episodes,
+            "n_frames": self.n_frames,
             "agent": self.agent.get_settings(),
             "results_dir": self.results_dir,
             "use_minimal_action_set": self.use_minimal_action_set,
-            "visualise": str(self.visualise),
         }
