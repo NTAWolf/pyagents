@@ -78,10 +78,10 @@ class Evaluator(object):
         s.savefig('mean_reward_per_episode.png')
 
     def plot_reward_per_episode(s):
-        etr = s.stats[['episode', 'total_reward']]
-        fig = etr.plot(x='episode',y='total_reward', style='o', legend='False')
+        # etr = s.stats[['episode', 'total_reward']]
+        # fig = etr.plot(x='episode',y='total_reward', style='o', legend='False')
+        sns.boxplot(x="episode", y="total_reward", data=s.stats)
         plt.ylabel('Total reward in episode')
-        # sns.boxplot(x="episode", y="total_reward", data=s.stats)
 
         s.expand_plot_lims()
         s.savefig('reward_per_episode.png')

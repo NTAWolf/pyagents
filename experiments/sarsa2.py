@@ -13,7 +13,7 @@ agent = Sarsa2Agent(n_frames_per_action=1,
 gm = GameManager("pong.bin",
                  agent, results_path,
                  remove_old_results_dir=True,
-                 n_episodes=10,
-                 n_epochs=6)
+                 n_episodes=20,
+                 n_epochs=4)
 
 gm.run()
