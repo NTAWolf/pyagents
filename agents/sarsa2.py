@@ -3,8 +3,9 @@ import numpy as np
 from . import Agent
 from util.collections import CircularList
 from util.managers import RepeatManager, LinearInterpolationManager
-from util.pongcess import RelativeIntercept, StateIndex
+from util.pongcess import RelativeIntercept, StateIndex, extract_game_area
 from util.logging import CSVLogger
+from util.data_capture import DataCapture
 
 
 class Sarsa2Agent(Agent):
@@ -20,13 +21,16 @@ class Sarsa2Agent(Agent):
     def __init__(self, n_frames_per_action=4, 
                  trace_type='replacing', 
                  learning_rate=0.001,
-                 discount=0.99, 
-                 lambda_v=0.5):
+                 discount=0.99,
+                 lambda_v=0.5,
+                 path='',
+                 capture=False):
         super(Sarsa2Agent, self).__init__(name='Sarsa2', version='2')
         self.n_frames_per_action = n_frames_per_action
 
         self.epsilon = LinearInterpolationManager([(0, 1.0), (1e4, 0.005)])
         self.action_repeat_manager = RepeatManager(n_frames_per_action - 1)
+        self.dc = DataCapture(path)
         
         self.trace_type = trace_type
         self.learning_rate = learning_rate
@@ -35,6 +39,9 @@ class Sarsa2Agent(Agent):
 
         self.q_vals = None
         self.e_vals = None
+        self.mem = CircularList(1000)
+        self.capture = capture
+        self.path = path
 
         self.initialize_asr_and_counters()
 
@@ -48,12 +55,15 @@ class Sarsa2Agent(Agent):
         self.n_random = 0
         self.n_rr = 0
         self.n_sa = 0
+        self.recorded_win = False
+        self.recorded_fail = False
 
         self.n_episode = 0
 
     def reset(self):
         self.q_vals[:] = 0.0
         self.e_vals[:] = 0.0
+        self.mem.clear()
         self.epsilon.reset()
         self.initialize_asr_and_counters()
 
@@ -105,12 +115,29 @@ class Sarsa2Agent(Agent):
         self.s_ = s_
         self.a_ = a_
 
-        # save the state
         self.rlogger.write(self.n_episode, 
                            *[q for q in list(self.q_vals.flatten())
                              + list(self.e_vals.flatten())])
 
+        self.mem.append({'frame': extract_game_area(self.state_cb.raw()),
+                         'sarsa': (s, a, r, s_, a_),
+                         'episode': self.n_episode,
+                         'iter': self.n_sa })
+
         return self.available_actions[a_]
+
+    def save_trace(self, tag, n=20):
+        # save the state
+        t = []
+        for i in reversed(range(n)):
+            rec = self.mem[i]
+            f = rec['frame']
+            s = rec['sarsa']
+            e = rec['episode']
+            c = rec['iter']
+            self.dc.save_frame(f, '{}_{}_{}'.format(tag, e, c))
+            t.append(s)
+        self.dc.write_trace('s,a,r,s_,a_', t, '{}_{}'.format(tag, self.n_episode))
 
     def set_results_dir(self, results_dir):
         super(Sarsa2Agent, self).set_results_dir(results_dir)
@@ -166,14 +193,22 @@ class Sarsa2Agent(Agent):
 
 
     def set_raw_state_callbacks(self, state_functions):
+        self.state_cb = state_functions
         self.preprocessor = RelativeIntercept(state_functions)
 
     def receive_reward(self, reward):
         #print "receive_reward {}".format(self.n_rr)
         self.n_rr += 1
         self.r_ = reward
-        if reward > 0:
+        if reward > 0 and not self.recorded_win and self.capture:
+            print "recording win trace for episode {}".format(self.n_episode)
+            self.recorded_win = True
             self.n_goals += 1
+            self.save_trace('win')
+        if reward < 0 and not self.recorded_fail and self.capture:
+            print "recording fail trace for episode {}".format(self.n_episode)
+            self.recorded_fail = True
+            self.save_trace('fail')
 
     def on_episode_start(self):
         self.n_goals = 0

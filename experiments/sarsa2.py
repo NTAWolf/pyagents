@@ -5,10 +5,12 @@ from . import get_results_path
 results_path = get_results_path(__name__)
 
 agent = Sarsa2Agent(n_frames_per_action=1,
-                   trace_type='accumulating', 
-                   learning_rate=0.001, 
-                   discount=0.999, 
-                   lambda_v=0.9)
+                    trace_type='accumulating', 
+                    learning_rate=0.001, 
+                    discount=0.999, 
+                    path='fig',
+                    capture=True,
+                    lambda_v=0.9)
 
 gm = GameManager("pong.bin",
                  agent, results_path,
