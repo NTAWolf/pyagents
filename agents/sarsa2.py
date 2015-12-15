@@ -55,8 +55,6 @@ class Sarsa2Agent(Agent):
         self.n_random = 0
         self.n_rr = 0
         self.n_sa = 0
-        self.recorded_win = False
-        self.recorded_fail = False
 
         self.n_episode = 0
 
@@ -126,7 +124,7 @@ class Sarsa2Agent(Agent):
 
         return self.available_actions[a_]
 
-    def save_trace(self, tag, n=20):
+    def save_trace(self, tag, n=200):
         # save the state
         t = []
         for i in reversed(range(n)):
@@ -135,7 +133,7 @@ class Sarsa2Agent(Agent):
             s = rec['sarsa']
             e = rec['episode']
             c = rec['iter']
-            self.dc.save_frame(f, '{}_{}_{}'.format(tag, e, c))
+            self.dc.save_frame(f, '{}_{}_{}'.format(tag, e, i))
             t.append(s)
         self.dc.write_trace('s,a,r,s_,a_', t, '{}_{}'.format(tag, self.n_episode))
 
@@ -214,6 +212,8 @@ class Sarsa2Agent(Agent):
         self.n_goals = 0
         self.n_greedy = 0
         self.n_random = 0
+        self.recorded_win = False
+        self.recorded_fail = False
 
     def on_episode_end(self):
         self.n_episode += 1
