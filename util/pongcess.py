@@ -2,6 +2,7 @@
 """
 
 import numpy as np
+import math
 
 import matplotlib.pyplot as plt
 import os
@@ -105,6 +106,8 @@ class RelativeIntercept(Feature):
         self.last_valid_v = None
         self.last_valid_p = None
 
+        self.last_states = [0, 0]
+
         self.LEFT = 0
         self.TOP = 1
         self.RIGHT = 2
@@ -116,7 +119,7 @@ class RelativeIntercept(Feature):
         p = self.pos.ball
 
         if p is None:
-            return 0
+            return self.get_error_value()
 
         if self.last_valid_p is None:
             self.last_valid_p = p
@@ -145,6 +148,10 @@ class RelativeIntercept(Feature):
             return 1
         if self.mode == 'trinary':
             return 0
+        if self.mode == 'distance':
+            return 0
+        if self.mode == 'trinary-hist':
+            return 0
 
     def postprocess(self, predicted_ball, agent):
         """Handles the different modes,
@@ -162,14 +169,35 @@ class RelativeIntercept(Feature):
             if diff < 0:
                 return 1
             return -1
-
+        if self.mode == 'distance':
+            return int(predicted_ball[1] - agent)
+        if self.mode == 'trinary-hist':
+            s = 0
+            diff = predicted_ball[1] - agent
+            if abs(diff) < PAD_HEIGHT/2:
+                s = 0
+            elif diff < 0:
+                s = 1
+            else:
+                s = -1
+            s0 = self.last_states[0]
+            s1 = self.last_states[1]
+            self.last_states[1] = self.last_states[0]
+            self.last_states[0] = s
+            return 9*s0 + 3*s1 + s
 
     def enumerate_states(self):
         if self.mode == 'binary':
             return [-1, 1]
         if self.mode == 'trinary':
             return [-1, 0, 1]
-
+        if self.mode == 'distance':
+            return list(set([b-p for p in Y_RANGE for b in Y_RANGE]))
+        if self.mode == 'trinary-hist':
+            # previous0 states: 0, -1, 1
+            # previous1 states: 0, -3, 3
+            # current states:   0, -9, 9
+            return [a + b + c for a in [0, -1, 1] for b in [0, -3, 3] for c in [0, -9, 9]]
 
     def next_intercept(self, p, v):
         if v[0] < 0:
@@ -191,6 +219,12 @@ class RelativeIntercept(Feature):
         a = (y_val - p[1]) / v[1]
         p = p + a*v
         return p, (1,-1)*v, edge
+
+    def get_settings(self):
+        s = super(RelativeIntercept, self).get_settings()
+        s.update({'mode':self.mode})
+        return s
+
 
 
 

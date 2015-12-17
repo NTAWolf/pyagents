@@ -9,7 +9,7 @@ agent = Sarsa2Agent(n_frames_per_action=1,
                     learning_rate=0.001, 
                     discount=0.999, 
                     path='fig',
-                    capture=True,
+                    capture=False,
                     lambda_v=0.9)
 
 gm = GameManager("pong.bin",

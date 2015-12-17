@@ -7,7 +7,6 @@ from util.pongcess import RelativeIntercept, StateIndex, extract_game_area
 from util.logging import CSVLogger
 from util.data_capture import DataCapture
 
-
 class Sarsa2Agent(Agent):
     """
     Agent that uses a SARSA(lambda)
@@ -28,7 +27,7 @@ class Sarsa2Agent(Agent):
         super(Sarsa2Agent, self).__init__(name='Sarsa2', version='2')
         self.n_frames_per_action = n_frames_per_action
 
-        self.epsilon = LinearInterpolationManager([(0, 1.0), (1e4, 0.005)])
+        self.epsilon = LinearInterpolationManager([(0, 1.0), (1e4, 0.05)])
         self.action_repeat_manager = RepeatManager(n_frames_per_action - 1)
         self.dc = DataCapture(path)
         
@@ -113,9 +112,9 @@ class Sarsa2Agent(Agent):
         self.s_ = s_
         self.a_ = a_
 
-        self.rlogger.write(self.n_episode, 
-                           *[q for q in list(self.q_vals.flatten())
-                             + list(self.e_vals.flatten())])
+        #self.rlogger.write(self.n_episode, 
+        #                   *[q for q in list(self.q_vals.flatten())
+        #                     + list(self.e_vals.flatten())])
 
         self.mem.append({'frame': np.copy(self.state_cb.rgb()),
                          'sarsa': (s, a, r, s_, a_),
@@ -192,7 +191,7 @@ class Sarsa2Agent(Agent):
 
     def set_raw_state_callbacks(self, state_functions):
         self.state_cb = state_functions
-        self.preprocessor = RelativeIntercept(state_functions)
+        self.preprocessor = RelativeIntercept(state_functions, mode='trinary-hist')
 
     def receive_reward(self, reward):
         #print "receive_reward {}".format(self.n_rr)

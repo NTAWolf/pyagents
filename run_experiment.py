@@ -4,6 +4,9 @@ import argparse
 
 import experiments
 
+import matplotlib
+matplotlib.use('Agg')
+
 def main():
     parser = argparse.ArgumentParser(
         description='Experiment handler for pyagents using ALE.')
