@@ -117,7 +117,7 @@ class Sarsa2Agent(Agent):
                            *[q for q in list(self.q_vals.flatten())
                              + list(self.e_vals.flatten())])
 
-        self.mem.append({'frame': extract_game_area(self.state_cb.raw()),
+        self.mem.append({'frame': np.copy(self.state_cb.rgb()),
                          'sarsa': (s, a, r, s_, a_),
                          'episode': self.n_episode,
                          'iter': self.n_sa })
